@@ -1,0 +1,327 @@
+/* Payment Processing Page - Light Grey Theme */
+
+.payment-page {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  background: hsl(210 11% 15%);
+  min-height: 100vh;
+}
+
+.page-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: hsl(210 17% 98%);
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Upload Card */
+.payment-page .upload-card {
+  background: hsl(210 11% 18%);
+  border: 1px solid hsl(210 11% 28%);
+  border-radius: 12px;
+  padding: 2.5rem;
+  margin-bottom: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.payment-page .upload-zone {
+  width: 100%;
+  max-width: 600px;
+  border: 2px dashed hsl(210 11% 28%);
+  border-radius: 8px;
+  padding: 3rem 2rem;
+  text-align: center;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  background: hsl(210 11% 16%);
+}
+
+.payment-page .upload-zone:hover,
+.payment-page .upload-zone.dragging {
+  border-color: hsl(210 11% 35%);
+  background: hsl(210 11% 20%);
+}
+
+.payment-page .upload-zone.has-file {
+  border-color: hsl(142.1 76.2% 36.3%);
+  background: hsl(142.1 76.2% 36.3% / 0.08);
+}
+
+.payment-page .upload-icon {
+  color: hsl(210 9% 55%);
+  margin-bottom: 1rem;
+}
+
+.payment-page .upload-zone h3 {
+  color: hsl(210 17% 90%);
+  font-size: 1.125rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.payment-page .upload-hint {
+  color: hsl(210 9% 65%);
+  font-size: 0.875rem;
+  margin-bottom: 1.5rem;
+}
+
+.payment-page .upload-limit {
+  color: hsl(210 9% 55%);
+  font-size: 0.75rem;
+  margin-top: 1rem;
+}
+
+/* Content Section */
+.content-section {
+  background: hsl(210 11% 18%);
+  border: 1px solid hsl(210 11% 28%);
+  border-radius: 12px;
+  padding: 2rem;
+  min-height: 400px;
+}
+
+/* Files Section */
+.files-section h2 {
+  color: hsl(210 17% 98%);
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+}
+
+/* Files Grid */
+.files-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.25rem;
+}
+
+.file-card {
+  position: relative;
+  background: hsl(210 11% 22%);
+  border: 1px solid hsl(210 11% 30%);
+  border-radius: 8px;
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.file-card:hover {
+  background: hsl(210 11% 24%);
+  border-color: hsl(210 11% 35%);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Delete Button */
+.file-card .delete-btn {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: hsl(210 11% 20%);
+  border: 1px solid hsl(210 11% 32%);
+  color: hsl(0 84% 60%);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.file-card:hover .delete-btn {
+  opacity: 1;
+}
+
+.file-card .delete-btn:hover {
+  background: hsl(0 84% 60%);
+  border-color: hsl(0 72% 51%);
+  color: white;
+}
+
+.file-icon {
+  width: 64px;
+  height: 64px;
+  background: hsl(210 11% 28%);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.file-icon svg {
+  color: hsl(210 9% 60%);
+}
+
+.file-info {
+  width: 100%;
+}
+
+.file-name {
+  color: hsl(210 17% 90%);
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-meta {
+  color: hsl(210 9% 65%);
+  font-size: 0.8rem;
+  margin-bottom: 0.25rem;
+}
+
+.file-date {
+  color: hsl(210 9% 55%);
+  font-size: 0.75rem;
+}
+
+/* Loading & Empty States */
+.loading-state,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  color: hsl(210 9% 65%);
+}
+
+.loading-state p,
+.empty-state p {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+.empty-state .empty-icon {
+  color: hsl(210 9% 45%);
+}
+
+.empty-state .hint {
+  color: hsl(210 9% 55%);
+  font-size: 0.875rem;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.btn-primary {
+  background: hsl(217 91% 60%);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: hsl(217 91% 55%);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid hsl(210 11% 32%);
+  color: hsl(210 17% 90%);
+}
+
+.btn-outline:hover {
+  background: hsl(210 11% 22%);
+  border-color: hsl(210 11% 40%);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: hsl(210 17% 85%);
+}
+
+.btn-ghost:hover {
+  background: hsl(210 11% 22%);
+}
+
+.btn-large {
+  padding: 0.875rem 2rem;
+  font-size: 0.9375rem;
+}
+
+/* Alert */
+.alert {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1.25rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  width: 100%;
+  max-width: 600px;
+}
+
+.alert.success {
+  background: hsl(142.1 76.2% 36.3% / 0.12);
+  border: 1px solid hsl(142.1 76.2% 36.3% / 0.3);
+  color: hsl(142.1 76.2% 50%);
+}
+
+.alert.error {
+  background: hsl(0 84% 60% / 0.12);
+  border: 1px solid hsl(0 84% 60% / 0.3);
+  color: hsl(0 84% 65%);
+}
+
+/* Spin animation */
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .payment-page {
+    padding: 1rem;
+  }
+  
+  .files-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 1rem;
+  }
+  
+  .file-card {
+    padding: 1rem;
+  }
+  
+  .file-icon {
+    width: 50px;
+    height: 50px;
+  }
+}

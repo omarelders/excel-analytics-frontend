@@ -1,0 +1,360 @@
+.orders-page {
+  padding: 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.page-header h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: hsl(210 17% 98%);
+  margin: 0;
+}
+
+/* Day Search */
+.header-controls {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.global-search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: hsl(210 11% 22%);
+  border: 1px solid hsl(210 11% 28%);
+  border-radius: 6px;
+  padding: 0 0.75rem;
+  height: 38px;
+}
+
+.global-search:focus-within {
+  border-color: hsl(210 9% 70%);
+}
+
+.global-search .search-icon {
+  color: hsl(210 9% 65%);
+  flex-shrink: 0;
+}
+
+.global-search input {
+  background: transparent;
+  border: none;
+  color: hsl(210 17% 98%);
+  font-size: 0.875rem;
+  outline: none;
+  min-width: 150px;
+}
+
+.global-search input::placeholder {
+  color: hsl(210 9% 65%);
+}
+
+.global-search .clear-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: hsl(210 9% 65%);
+  cursor: pointer;
+  padding: 0.25rem;
+}
+
+.global-search .clear-btn:hover {
+  color: hsl(210 17% 98%);
+}
+
+.global-search .search-btn {
+  background: hsl(217 91% 60%);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.global-search .search-btn:hover {
+  background: hsl(217 91% 55%);
+}
+
+.day-search {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.day-search input {
+  background: hsl(210 11% 22%);
+  border: 1px solid hsl(210 11% 28%);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  color: hsl(210 17% 98%);
+  font-size: 0.875rem;
+}
+
+.day-search input:focus {
+  outline: 2px solid hsl(217 91% 60%);
+  outline-offset: 2px;
+}
+
+.day-search button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: hsl(217 91% 60%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.day-search button:hover {
+  background: hsl(217 91% 55%);
+}
+
+/* Day Tabs */
+.day-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.day-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: transparent;
+  border: 1px solid hsl(210 11% 28%);
+  border-radius: 6px;
+  color: hsl(210 9% 65%);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+
+.day-tab:hover {
+  background: hsl(210 11% 24%);
+  color: hsl(210 17% 98%);
+}
+
+.day-tab.active {
+  background: hsl(217 91% 60%);
+  color: white;
+  border-color: hsl(217 91% 60%);
+}
+
+.loading-days,
+.no-days {
+  color: hsl(210 9% 65%);
+  font-size: 0.875rem;
+  padding: 0.5rem;
+}
+
+.loading-days {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Search Mode Banner */
+.search-mode-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: hsl(221.2 83.2% 53.3% / 0.1);
+  border: 1px solid hsl(221.2 83.2% 53.3% / 0.3);
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  color: hsl(221.2 83.2% 53.3%);
+  font-size: 0.875rem;
+}
+
+.search-mode-banner strong {
+  color: hsl(210 17% 98%);
+}
+
+.search-mode-banner button {
+  background: transparent;
+  border: 1px solid hsl(221.2 83.2% 53.3%);
+  color: hsl(221.2 83.2% 53.3%);
+  padding: 0.375rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.search-mode-banner button:hover {
+  background: hsl(221.2 83.2% 53.3% / 0.2);
+}
+
+/* Error States */
+.search-error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.days-error {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  color: #ef4444;
+  font-size: 0.875rem;
+}
+
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 3rem;
+  color: #ef4444;
+  text-align: center;
+}
+
+.retry-btn {
+  padding: 0.5rem 1rem;
+  background: hsl(217 91% 60%);
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.2s;
+}
+
+.retry-btn:hover {
+  background: hsl(217 91% 55%);
+}
+
+/* Orders Section */
+.orders-section {
+  background: hsl(210 11% 18%);
+  border: 1px solid hsl(210 11% 28%);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.loading-state,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 3rem;
+  color: hsl(210 9% 65%);
+}
+
+.empty-state svg {
+  opacity: 0.5;
+}
+
+/* Table Container */
+.table-container {
+  overflow-x: auto;
+}
+
+.orders-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 800px;
+}
+
+.orders-table th {
+  padding: 0.75rem 1rem;
+  text-align: right;
+  font-weight: 500;
+  font-size: 0.8125rem;
+  color: hsl(210 9% 70%);
+  background: hsl(210 11% 22%);
+  border-bottom: 1px solid hsl(210 11% 28%);
+  white-space: nowrap;
+}
+
+.orders-table td {
+  padding: 0.75rem 1rem;
+  text-align: right;
+  font-size: 0.875rem;
+  color: hsl(210 17% 90%);
+  border-bottom: 1px solid hsl(210 11% 24%);
+}
+
+.orders-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.orders-table tbody tr:hover {
+  background: hsl(210 11% 22%);
+}
+
+/* Orders Count */
+.orders-count {
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  color: hsl(210 9% 65%);
+  border-top: 1px solid hsl(210 11% 28%);
+  background: hsl(210 11% 20%);
+}
+
+/* Spin animation */
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .orders-page {
+    padding: 1rem;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .page-header h1 {
+    font-size: 1.25rem;
+  }
+
+  .day-search {
+    width: 100%;
+  }
+
+  .day-search input {
+    flex: 1;
+  }
+}
