@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import api from '../api'
-import { Search, ChevronLeft, ChevronRight, ChevronFirst, ChevronLast, Package, DollarSign, Filter, X, Loader2, AlertCircle, RefreshCw, Check } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight, ChevronFirst, ChevronLast, Package, DollarSign, Filter, X, Loader2, AlertCircle, RefreshCw, Check, Calendar } from 'lucide-react'
 import { CHANGEABLE_STATUSES, TARGET_STATUSES, canChangeStatus, getStatusColor } from '../constants/statuses'
 import './AllOrders.css'
 
@@ -21,6 +21,10 @@ function AllOrdersPage() {
   const [amountMax, setAmountMax] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   
+  // Date filter states
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  
   // Stats
   const [stats, setStats] = useState({ totalOrders: 0, totalPrice: 0 })
   
@@ -31,12 +35,14 @@ function AllOrdersPage() {
   const [updatingStatus, setUpdatingStatus] = useState(null)
   const [statusMessage, setStatusMessage] = useState(null)
 
-  const fetchShipments = async (page = 0, search = '') => {
+  const fetchShipments = async (page = 0, search = '', dateFromVal = '', dateToVal = '') => {
     setLoading(true)
     setError(null)
     try {
       const params = { limit: PAGE_SIZE, offset: page * PAGE_SIZE }
       if (search) params.search = search
+      if (dateFromVal) params.date_from = dateFromVal
+      if (dateToVal) params.date_to = dateToVal
       
       const response = await api.get('/shipments', { params })
       setShipments(response.data.data || [])
@@ -57,16 +63,23 @@ function AllOrdersPage() {
     }
   }
 
-  // Fetch stats (total orders and total price)
-  const fetchStats = async () => {
+  // Fetch stats (total orders and total price) - now respects date filters
+  const fetchStats = async (dateFromVal = '', dateToVal = '') => {
     try {
-      // Get all shipments count - we use limit=1 just to get total
-      const response = await api.get('/shipments', { params: { limit: 1 } })
+      const params = { limit: 1 }
+      if (dateFromVal) params.date_from = dateFromVal
+      if (dateToVal) params.date_to = dateToVal
+      
+      // Get filtered shipments count
+      const response = await api.get('/shipments', { params })
       setStats(prev => ({ ...prev, totalOrders: response.data.total || 0 }))
       
-      // For total price, we need to fetch more data (or add a backend endpoint)
-      // For now, we'll calculate from first 1000 records as an approximation
-      const allData = await api.get('/shipments', { params: { limit: 1000 } })
+      // For total price, fetch more data with same filters
+      const allParams = { limit: 1000 }
+      if (dateFromVal) allParams.date_from = dateFromVal
+      if (dateToVal) allParams.date_to = dateToVal
+      
+      const allData = await api.get('/shipments', { params: allParams })
       const total = allData.data.data.reduce((sum, s) => sum + (s['قيمة الطرد'] || 0), 0)
       setStats(prev => ({ ...prev, totalPrice: total }))
     } catch (err) {
@@ -100,12 +113,12 @@ function AllOrdersPage() {
   }
 
   useEffect(() => {
-    fetchShipments(currentPage, searchTerm)
-  }, [currentPage, searchTerm])
+    fetchShipments(currentPage, searchTerm, dateFrom, dateTo)
+  }, [currentPage, searchTerm, dateFrom, dateTo])
 
   useEffect(() => {
-    fetchStats()
-  }, [])
+    fetchStats(dateFrom, dateTo)
+  }, [dateFrom, dateTo])
 
   const handleSearch = (e) => {
     e.preventDefault()
@@ -117,6 +130,8 @@ function AllOrdersPage() {
     setPriceTypeFilter('')
     setAmountMin('')
     setAmountMax('')
+    setDateFrom('')
+    setDateTo('')
   }
 
   // canChangeStatus is now imported from '../constants/statuses'
@@ -140,7 +155,7 @@ function AllOrdersPage() {
     })
   }, [shipments, priceTypeFilter, amountMin, amountMax])
 
-  const hasActiveFilters = priceTypeFilter || amountMin || amountMax
+  const hasActiveFilters = priceTypeFilter || amountMin || amountMax || dateFrom || dateTo
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE)
 
@@ -205,7 +220,7 @@ function AllOrdersPage() {
 
         <button 
           className="refresh-btn" 
-          onClick={() => { fetchShipments(currentPage, searchTerm); fetchStats(); }}
+          onClick={() => { fetchShipments(currentPage, searchTerm, dateFrom, dateTo); fetchStats(dateFrom, dateTo); }}
           disabled={loading}
         >
           <RefreshCw size={16} className={loading ? 'spin' : ''} />
@@ -247,6 +262,30 @@ function AllOrdersPage() {
             </div>
           </div>
 
+          {/* Date Filter */}
+          <div className="filter-group date-filter-group">
+            <label>
+              <Calendar size={14} />
+              التاريخ (Date Filter)
+            </label>
+            <div className="date-inputs">
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                title="From date"
+              />
+              <span>to</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                title="To date"
+                min={dateFrom}
+              />
+            </div>
+          </div>
+
           {hasActiveFilters && (
             <button className="clear-filters-btn" onClick={clearFilters}>
               <X size={14} />
@@ -261,7 +300,7 @@ function AllOrdersPage() {
         <div className="error-message">
           <AlertCircle size={16} />
           <span>{error}</span>
-          <button onClick={() => fetchShipments(currentPage, searchTerm)}>Retry</button>
+          <button onClick={() => fetchShipments(currentPage, searchTerm, dateFrom, dateTo)}>Retry</button>
         </div>
       )}
 
