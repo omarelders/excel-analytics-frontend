@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import api from '../api'
 import { Calendar, Search, Loader2, AlertCircle, X } from 'lucide-react'
 import { getStatusColor } from '../constants/statuses'
+import TableSkeleton from '../components/TableSkeleton'
 import './OrdersByDay.css'
 
 function OrdersByDayPage() {
@@ -240,10 +241,7 @@ function OrdersByDayPage() {
       {/* Orders Table */}
       <div className="orders-section">
         {isDataLoading ? (
-          <div className="loading-state">
-            <Loader2 size={24} className="spin" />
-            <span>{isSearchMode ? 'Searching...' : 'Loading orders...'}</span>
-          </div>
+          <TableSkeleton rows={10} />
         ) : ordersError && !isSearchMode ? (
           <div className="error-state">
             <AlertCircle size={24} />

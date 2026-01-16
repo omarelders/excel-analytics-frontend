@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import api from '../api'
-import { Search, ChevronLeft, ChevronRight, ChevronFirst, ChevronLast, Package, DollarSign, Filter, X, Loader2, AlertCircle, RefreshCw, Check, Calendar } from 'lucide-react'
-import { CHANGEABLE_STATUSES, TARGET_STATUSES, canChangeStatus, getStatusColor } from '../constants/statuses'
+import { Search, ChevronLeft, ChevronRight, ChevronFirst, ChevronLast, Package, DollarSign, Filter, X, Loader2, AlertCircle, Check, Calendar, ChevronDown, Trash2, Pencil, Edit3 } from 'lucide-react'
+import { getStatusColor } from '../constants/statuses'
+import TableSkeleton from '../components/TableSkeleton'
 import './AllOrders.css'
 
 const PAGE_SIZE = 100
@@ -33,7 +34,25 @@ function AllOrdersPage() {
   
   // Status update state
   const [updatingStatus, setUpdatingStatus] = useState(null)
+  const [openDropdown, setOpenDropdown] = useState(null) // Track which row has open dropdown
+  
+  // Stats popup state
+  const [showStatsPopup, setShowStatsPopup] = useState(false)
+  const [statusCounts, setStatusCounts] = useState({})
   const [statusMessage, setStatusMessage] = useState(null)
+
+  // Row selection state
+  const [selectedIds, setSelectedIds] = useState(new Set())
+  const [isEditMode, setIsEditMode] = useState(false)
+  
+  // Delete confirmation modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  // Edit modal state
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editData, setEditData] = useState({ code: '', amount: '', description: '' })
 
   const fetchShipments = async (page = 0, search = '', dateFromVal = '', dateToVal = '') => {
     setLoading(true)
@@ -64,6 +83,7 @@ function AllOrdersPage() {
   }
 
   // Fetch stats (total orders and total price) - now respects date filters
+  // Excludes "مرتجع" orders from total price calculation
   const fetchStats = async (dateFromVal = '', dateToVal = '') => {
     try {
       const params = { limit: 1 }
@@ -80,17 +100,43 @@ function AllOrdersPage() {
       if (dateToVal) allParams.date_to = dateToVal
       
       const allData = await api.get('/shipments', { params: allParams })
-      const total = allData.data.data.reduce((sum, s) => sum + (s['قيمة الطرد'] || 0), 0)
+      // Exclude "مرتجع" orders from total price
+      const total = allData.data.data
+        .filter(s => s['الحالة'] !== 'مرتجع')
+        .reduce((sum, s) => sum + (s['قيمة الطرد'] || 0), 0)
       setStats(prev => ({ ...prev, totalPrice: total }))
+      
+      // Calculate status counts for popup
+      const counts = {}
+      allData.data.data.forEach(s => {
+        const status = s['الحالة'] || 'غير معروف'
+        counts[status] = (counts[status] || 0) + 1
+      })
+      setStatusCounts(counts)
     } catch (err) {
       console.error('Failed to fetch stats:', err)
     }
   }
 
+  // Available statuses for dropdown - fetched from backend
+  const [availableStatuses, setAvailableStatuses] = useState([])
+
+  // Fetch status constants from backend (single source of truth)
+  const fetchStatuses = async () => {
+    try {
+      const response = await api.get('/statuses')
+      setAvailableStatuses(response.data.target_statuses || [])
+    } catch (err) {
+      console.error('Failed to fetch statuses:', err)
+      // Fallback to empty array - status dropdown will show nothing
+    }
+  }
+
   // Update shipment status
-  const updateStatus = async (shipmentCode, newStatus) => {
+  const updateStatus = async (shipmentCode, newStatus, previousStatus, orderValue) => {
     setUpdatingStatus(shipmentCode)
     setStatusMessage(null)
+    setOpenDropdown(null)
     try {
       await api.patch(`/shipments/${encodeURIComponent(shipmentCode)}/status?new_status=${encodeURIComponent(newStatus)}`)
       
@@ -99,18 +145,43 @@ function AllOrdersPage() {
         s['الكود'] === shipmentCode ? { ...s, 'الحالة': newStatus } : s
       ))
       
-      setStatusMessage({ type: 'success', text: `Status updated to "${newStatus}"` })
+      // Update stats: if changing TO "مرتجع", deduct value; if changing FROM "مرتجع", add value back
+      if (newStatus === 'مرتجع' && previousStatus !== 'مرتجع') {
+        setStats(prev => ({ ...prev, totalPrice: prev.totalPrice - (orderValue || 0) }))
+      } else if (previousStatus === 'مرتجع' && newStatus !== 'مرتجع') {
+        setStats(prev => ({ ...prev, totalPrice: prev.totalPrice + (orderValue || 0) }))
+      }
+      
+      // Update status counts
+      setStatusCounts(prev => ({
+        ...prev,
+        [previousStatus]: Math.max(0, (prev[previousStatus] || 0) - 1),
+        [newStatus]: (prev[newStatus] || 0) + 1
+      }))
+      
+      setStatusMessage({ type: 'success', text: `تم تحديث الحالة إلى "${newStatus}"` })
       setTimeout(() => setStatusMessage(null), 3000)
     } catch (err) {
       console.error('Failed to update status:', err)
       setStatusMessage({ 
         type: 'error', 
-        text: err.response?.data?.detail || 'Failed to update status' 
+        text: err.response?.data?.detail || 'فشل في تحديث الحالة' 
       })
     } finally {
       setUpdatingStatus(null)
     }
   }
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.status-dropdown-container')) {
+        setOpenDropdown(null)
+      }
+    }
+    document.addEventListener('click', handleClickOutside)
+    return () => document.removeEventListener('click', handleClickOutside)
+  }, [])
 
   useEffect(() => {
     fetchShipments(currentPage, searchTerm, dateFrom, dateTo)
@@ -118,6 +189,7 @@ function AllOrdersPage() {
 
   useEffect(() => {
     fetchStats(dateFrom, dateTo)
+    fetchStatuses() // Fetch available statuses from backend
   }, [dateFrom, dateTo])
 
   const handleSearch = (e) => {
@@ -134,7 +206,113 @@ function AllOrdersPage() {
     setDateTo('')
   }
 
-  // canChangeStatus is now imported from '../constants/statuses'
+  // Selection handlers
+  const toggleSelect = (code) => {
+    setSelectedIds(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(code)) {
+        newSet.delete(code)
+      } else {
+        newSet.add(code)
+      }
+      return newSet
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredShipments.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(filteredShipments.map(s => s['الكود'])))
+    }
+  }
+
+  const clearSelection = () => {
+    setSelectedIds(new Set())
+  }
+
+  // Delete handlers with single confirmation
+  const handleDeleteClick = () => {
+    setShowDeleteModal(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    setIsDeleting(true)
+    try {
+      const deletePromises = Array.from(selectedIds).map(code =>
+        api.delete(`/shipments/${encodeURIComponent(code)}`)
+      )
+      await Promise.all(deletePromises)
+      
+      setStatusMessage({ type: 'success', text: `تم حذف ${selectedIds.size} طلبات بنجاح` })
+      setTimeout(() => setStatusMessage(null), 3000)
+      
+      // Clear selection and refresh data
+      clearSelection()
+      fetchShipments(currentPage, searchTerm, dateFrom, dateTo)
+      fetchStats(dateFrom, dateTo)
+    } catch (err) {
+      console.error('Failed to delete shipments:', err)
+      setStatusMessage({ 
+        type: 'error', 
+        text: err.response?.data?.detail || 'فشل في حذف الطلبات' 
+      })
+    } finally {
+      setIsDeleting(false)
+      setShowDeleteModal(false)
+    }
+  }
+
+  const cancelDelete = () => {
+    setShowDeleteModal(false)
+  }
+
+  // Edit handlers - only works when exactly 1 item is selected
+  const handleEditClick = () => {
+    if (selectedIds.size !== 1) return
+    const code = Array.from(selectedIds)[0]
+    const shipment = filteredShipments.find(s => s['الكود'] === code)
+    if (shipment) {
+      setEditData({
+        code: code,
+        amount: shipment['قيمة الطرد'] || '',
+        description: shipment['الوصف'] || ''
+      })
+      setShowEditModal(true)
+    }
+  }
+
+  const handleConfirmEdit = async () => {
+    setIsEditing(true)
+    try {
+      const params = new URLSearchParams()
+      if (editData.amount !== '') params.append('amount', editData.amount)
+      if (editData.description !== '') params.append('description', editData.description)
+      
+      await api.patch(`/shipments/${encodeURIComponent(editData.code)}?${params.toString()}`)
+      
+      setStatusMessage({ type: 'success', text: 'تم تحديث الطلب بنجاح' })
+      setTimeout(() => setStatusMessage(null), 3000)
+      
+      // Refresh data
+      clearSelection()
+      fetchShipments(currentPage, searchTerm, dateFrom, dateTo)
+      fetchStats(dateFrom, dateTo)
+    } catch (err) {
+      console.error('Failed to edit shipment:', err)
+      setStatusMessage({ 
+        type: 'error', 
+        text: err.response?.data?.detail || 'فشل في تحديث الطلب' 
+      })
+    } finally {
+      setIsEditing(false)
+      setShowEditModal(false)
+    }
+  }
+
+  const cancelEdit = () => {
+    setShowEditModal(false)
+  }
 
   // Apply client-side filters
   const filteredShipments = useMemo(() => {
@@ -169,9 +347,47 @@ function AllOrdersPage() {
         </div>
       )}
 
+      {/* Stats Popup */}
+      {showStatsPopup && (
+        <div className="stats-popup-overlay" onClick={() => setShowStatsPopup(false)}>
+          <div className="stats-popup" onClick={(e) => e.stopPropagation()}>
+            <div className="stats-popup-header">
+              <h3>توزيع الطلبات حسب الحالة</h3>
+              <button className="close-popup-btn" onClick={() => setShowStatsPopup(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className="stats-popup-content">
+              {Object.entries(statusCounts).map(([status, count]) => (
+                <div key={status} className="status-count-row">
+                  <span className={`badge badge-${getStatusColor(status)}`}>{status}</span>
+                  <span className="status-count-value">{count.toLocaleString()}</span>
+                </div>
+              ))}
+              {Object.keys(statusCounts).length > 0 && (
+                <div className="status-count-row delivery-percentage">
+                  <span className="percentage-label">نسبة التسليم</span>
+                  <span className="percentage-value">
+                    {(() => {
+                      const totalOrders = Object.values(statusCounts).reduce((sum, c) => sum + c, 0)
+                      const delivered = statusCounts['تم التسليم'] || 0
+                      const percentage = totalOrders > 0 ? ((delivered / totalOrders) * 100).toFixed(1) : 0
+                      return `${percentage}%`
+                    })()}
+                  </span>
+                </div>
+              )}
+              {Object.keys(statusCounts).length === 0 && (
+                <p className="no-data">لا توجد بيانات</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Stats Bar */}
       <div className="stats-bar">
-        <div className="stat-item">
+        <div className="stat-item clickable" onClick={() => setShowStatsPopup(true)}>
           <Package size={20} />
           <div className="stat-info">
             <span className="stat-label">Total Orders</span>
@@ -219,11 +435,16 @@ function AllOrdersPage() {
         </button>
 
         <button 
-          className="refresh-btn" 
-          onClick={() => { fetchShipments(currentPage, searchTerm, dateFrom, dateTo); fetchStats(dateFrom, dateTo); }}
-          disabled={loading}
+          className={`edit-mode-btn ${isEditMode ? 'active' : ''}`}
+          onClick={() => {
+            setIsEditMode(!isEditMode)
+            if (isEditMode) {
+              clearSelection() // Clear selection when exiting edit mode
+            }
+          }}
+          title={isEditMode ? 'Exit edit mode' : 'Enter edit mode'}
         >
-          <RefreshCw size={16} className={loading ? 'spin' : ''} />
+          <Pencil size={16} />
         </button>
       </div>
 
@@ -307,10 +528,7 @@ function AllOrdersPage() {
       {/* Table */}
       <div className="table-card">
         {loading ? (
-          <div className="loading-state">
-            <Loader2 size={24} className="spin" />
-            <span>Loading orders...</span>
-          </div>
+          <TableSkeleton rows={8} />
         ) : filteredShipments.length === 0 ? (
           <div className="empty-state">
             <Package size={48} />
@@ -322,12 +540,21 @@ function AllOrdersPage() {
               <table className="orders-table">
                 <thead>
                   <tr>
+                    {isEditMode && (
+                      <th className="checkbox-cell">
+                        <input
+                          type="checkbox"
+                          className="row-checkbox"
+                          checked={selectedIds.size > 0 && selectedIds.size === filteredShipments.length}
+                          onChange={toggleSelectAll}
+                        />
+                      </th>
+                    )}
                     <th>الكود</th>
                     <th>التاريخ</th>
                     <th>العميل</th>
                     <th>الوصف</th>
                     <th>الحالة</th>
-                    <th>تغيير الحالة</th>
                     <th>المستلم</th>
                     <th>المدينة</th>
                     <th>قيمة الطرد</th>
@@ -337,39 +564,63 @@ function AllOrdersPage() {
                 </thead>
                 <tbody>
                   {filteredShipments.map((shipment) => (
-                    <tr key={shipment['الكود'] || Math.random()}>
+                    <tr 
+                      key={shipment['الكود'] || Math.random()}
+                      className={selectedIds.has(shipment['الكود']) ? 'row-selected' : ''}
+                    >
+                      {isEditMode && (
+                        <td className="checkbox-cell">
+                          <input
+                            type="checkbox"
+                            className="row-checkbox"
+                            checked={selectedIds.has(shipment['الكود'])}
+                            onChange={() => toggleSelect(shipment['الكود'])}
+                          />
+                        </td>
+                      )}
                       <td><span className="code">{shipment['الكود']}</span></td>
                       <td className="date-cell">{shipment['التاريخ']}</td>
                       <td className="client-cell">{shipment['العميل']}</td>
                       <td>{shipment['الوصف']}</td>
-                      <td><span className={`badge badge-${getStatusColor(shipment['الحالة'])}`}>{shipment['الحالة']}</span></td>
-                      <td className="status-action-cell">
-                        {canChangeStatus(shipment['الحالة']) ? (
-                          <div className="status-actions">
-                            {updatingStatus === shipment['الكود'] ? (
-                              <Loader2 size={16} className="spin" />
-                            ) : (
-                              <>
-                                <button 
-                                  className="status-btn delivered"
-                                  onClick={() => updateStatus(shipment['الكود'], 'تم التسليم')}
-                                  title="تم التسليم"
-                                >
-                                  تسليم
-                                </button>
-                                <button 
-                                  className="status-btn returned"
-                                  onClick={() => updateStatus(shipment['الكود'], 'مرتجع')}
-                                  title="مرتجع"
-                                >
-                                  مرتجع
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="no-action">—</span>
-                        )}
+                      <td className="status-cell">
+                        <div className="status-dropdown-container">
+                          {updatingStatus === shipment['الكود'] ? (
+                            <Loader2 size={16} className="spin" />
+                          ) : (
+                            <>
+                              <button
+                                className={`status-dropdown-trigger badge badge-${getStatusColor(shipment['الحالة'])}`}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setOpenDropdown(openDropdown === shipment['الكود'] ? null : shipment['الكود'])
+                                }}
+                              >
+                                {shipment['الحالة']}
+                                <ChevronDown size={14} />
+                              </button>
+                              {openDropdown === shipment['الكود'] && (
+                                <div className="status-dropdown-menu">
+                                  {availableStatuses
+                                    .filter(status => status !== shipment['الحالة'])
+                                    .map(status => (
+                                      <button
+                                        key={status}
+                                        className={`status-dropdown-item badge-${getStatusColor(status)}`}
+                                        onClick={() => updateStatus(
+                                          shipment['الكود'], 
+                                          status, 
+                                          shipment['الحالة'], 
+                                          shipment['قيمة الطرد']
+                                        )}
+                                      >
+                                        {status}
+                                      </button>
+                                    ))}
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
                       </td>
                       <td>{shipment['المستلم']}</td>
                       <td>{shipment['مدينة المستلم']}</td>
@@ -425,6 +676,92 @@ function AllOrdersPage() {
           </>
         )}
       </div>
+
+      {/* Floating Selection Action Bar */}
+      {selectedIds.size > 0 && (
+        <div className="selection-action-bar">
+          <button className="close-selection-btn" onClick={clearSelection}>
+            <X size={18} />
+          </button>
+          <span className="selection-count">{selectedIds.size}</span>
+          <span className="selection-text">items selected</span>
+          {selectedIds.size === 1 && (
+            <button className="edit-selected-btn" onClick={handleEditClick}>
+              <Edit3 size={16} />
+              Edit
+            </button>
+          )}
+          <button className="delete-selected-btn" onClick={handleDeleteClick}>
+            <Trash2 size={16} />
+            Delete
+          </button>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="delete-modal-overlay" onClick={cancelDelete}>
+          <div className="delete-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="delete-modal-header danger">
+              <Trash2 size={24} className="danger-icon" />
+              <h3>تأكيد الحذف</h3>
+            </div>
+            <div className="delete-modal-content">
+              <p>هل أنت متأكد من حذف <strong>{selectedIds.size}</strong> طلبات؟</p>
+              <p className="warning-text">هذا الإجراء لا يمكن التراجع عنه.</p>
+            </div>
+            <div className="delete-modal-actions">
+              <button className="cancel-btn" onClick={cancelDelete} disabled={isDeleting}>إلغاء</button>
+              <button className="danger-btn" onClick={handleConfirmDelete} disabled={isDeleting}>
+                {isDeleting ? <Loader2 size={16} className="spin" /> : <Trash2 size={16} />}
+                حذف
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {showEditModal && (
+        <div className="delete-modal-overlay" onClick={cancelEdit}>
+          <div className="delete-modal edit-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="delete-modal-header edit">
+              <Edit3 size={24} className="edit-icon" />
+              <h3>تعديل الطلب</h3>
+            </div>
+            <div className="delete-modal-content">
+              <p className="edit-code">الكود: <strong>{editData.code}</strong></p>
+              <div className="edit-form">
+                <label>
+                  قيمة الطرد (Amount)
+                  <input 
+                    type="number" 
+                    value={editData.amount} 
+                    onChange={(e) => setEditData(prev => ({ ...prev, amount: e.target.value }))}
+                    placeholder="0.00"
+                  />
+                </label>
+                <label>
+                  الوصف (Description)
+                  <textarea 
+                    value={editData.description} 
+                    onChange={(e) => setEditData(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Enter description..."
+                    rows={3}
+                  />
+                </label>
+              </div>
+            </div>
+            <div className="delete-modal-actions">
+              <button className="cancel-btn" onClick={cancelEdit} disabled={isEditing}>إلغاء</button>
+              <button className="primary-btn" onClick={handleConfirmEdit} disabled={isEditing}>
+                {isEditing ? <Loader2 size={16} className="spin" /> : <Check size={16} />}
+                حفظ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

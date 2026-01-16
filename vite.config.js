@@ -10,6 +10,7 @@ export default defineConfig({
       '/health': 'http://127.0.0.1:8000',
       '/shipments': 'http://127.0.0.1:8000',
       '/payments': 'http://127.0.0.1:8000',
+      '/statuses': 'http://127.0.0.1:8000',
     }
   }
 })

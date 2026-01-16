@@ -9,6 +9,7 @@ import {
   FileSpreadsheet,
   Trash2
 } from 'lucide-react'
+import FilesGridSkeleton from '../components/FilesGridSkeleton'
 import './PaymentProcessing.css'
 
 const MAX_FILE_SIZE_MB = 10
@@ -209,10 +210,7 @@ function PaymentProcessingPage() {
           <h2>📁 Uploaded Files</h2>
           
           {loadingFiles ? (
-            <div className="loading-state">
-              <Loader2 className="spin" size={32} />
-              <p>Loading files...</p>
-            </div>
+            <FilesGridSkeleton count={4} />
           ) : paymentFiles.length === 0 ? (
             <div className="empty-state">
               <FileSpreadsheet size={48} className="empty-icon" />

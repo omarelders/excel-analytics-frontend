@@ -9,6 +9,7 @@ import {
   FileSpreadsheet,
   Trash2
 } from 'lucide-react'
+import FilesGridSkeleton from '../components/FilesGridSkeleton'
 import './Home.css'
 
 const MAX_FILE_SIZE_MB = 10
@@ -210,10 +211,7 @@ function HomePage() {
         </div>
 
         {loadingFiles ? (
-          <div className="loading-state">
-            <Loader2 className="spin" size={32} />
-            <p>Loading files...</p>
-          </div>
+          <FilesGridSkeleton count={4} />
         ) : uploadedFiles.length === 0 ? (
           <div className="empty-state">
             <FileSpreadsheet size={48} className="empty-icon" />
