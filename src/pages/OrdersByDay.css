@@ -16,7 +16,7 @@
 .page-header h1 {
   font-size: 1.5rem;
   font-weight: 600;
-  color: hsl(210 17% 98%);
+  color: hsl(var(--foreground));
   margin: 0;
 }
 
@@ -32,33 +32,33 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: hsl(210 11% 22%);
-  border: 1px solid hsl(210 11% 28%);
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
   border-radius: 6px;
   padding: 0 0.75rem;
   height: 38px;
 }
 
 .global-search:focus-within {
-  border-color: hsl(210 9% 70%);
+  border-color: hsl(var(--ring));
 }
 
 .global-search .search-icon {
-  color: hsl(210 9% 65%);
+  color: hsl(var(--muted-foreground));
   flex-shrink: 0;
 }
 
 .global-search input {
   background: transparent;
   border: none;
-  color: hsl(210 17% 98%);
+  color: hsl(var(--foreground));
   font-size: 0.875rem;
   outline: none;
   min-width: 150px;
 }
 
 .global-search input::placeholder {
-  color: hsl(210 9% 65%);
+  color: hsl(var(--muted-foreground));
 }
 
 .global-search .clear-btn {
@@ -67,18 +67,18 @@
   justify-content: center;
   background: transparent;
   border: none;
-  color: hsl(210 9% 65%);
+  color: hsl(var(--muted-foreground));
   cursor: pointer;
   padding: 0.25rem;
 }
 
 .global-search .clear-btn:hover {
-  color: hsl(210 17% 98%);
+  color: hsl(var(--foreground));
 }
 
 .global-search .search-btn {
-  background: hsl(217 91% 60%);
-  color: white;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
   border: none;
   border-radius: 4px;
   padding: 0.375rem 0.75rem;
@@ -87,7 +87,7 @@
 }
 
 .global-search .search-btn:hover {
-  background: hsl(217 91% 55%);
+  background: hsl(var(--primary) / 0.9);
 }
 
 .day-search {
@@ -96,16 +96,16 @@
 }
 
 .day-search input {
-  background: hsl(210 11% 22%);
-  border: 1px solid hsl(210 11% 28%);
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
   border-radius: 6px;
   padding: 0.5rem 0.75rem;
-  color: hsl(210 17% 98%);
+  color: hsl(var(--foreground));
   font-size: 0.875rem;
 }
 
 .day-search input:focus {
-  outline: 2px solid hsl(217 91% 60%);
+  outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
 }
 
@@ -115,15 +115,15 @@
   justify-content: center;
   width: 36px;
   height: 36px;
-  background: hsl(217 91% 60%);
-  color: white;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
   border: none;
   border-radius: 6px;
   cursor: pointer;
 }
 
 .day-search button:hover {
-  background: hsl(217 91% 55%);
+  background: hsl(var(--primary) / 0.9);
 }
 
 /* Day Tabs */
@@ -142,9 +142,9 @@
   gap: 0.5rem;
   padding: 0.5rem 0.75rem;
   background: transparent;
-  border: 1px solid hsl(210 11% 28%);
+  border: 1px solid hsl(var(--border));
   border-radius: 6px;
-  color: hsl(210 9% 65%);
+  color: hsl(var(--muted-foreground));
   font-size: 0.8125rem;
   cursor: pointer;
   white-space: nowrap;
@@ -152,19 +152,19 @@
 }
 
 .day-tab:hover {
-  background: hsl(210 11% 24%);
-  color: hsl(210 17% 98%);
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
 }
 
 .day-tab.active {
-  background: hsl(217 91% 60%);
-  color: white;
-  border-color: hsl(217 91% 60%);
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border-color: hsl(var(--primary));
 }
 
 .loading-days,
 .no-days {
-  color: hsl(210 9% 65%);
+  color: hsl(var(--muted-foreground));
   font-size: 0.875rem;
   padding: 0.5rem;
 }
@@ -179,24 +179,24 @@
 .search-mode-banner {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   padding: 0.75rem 1rem;
-  background: hsl(221.2 83.2% 53.3% / 0.1);
-  border: 1px solid hsl(221.2 83.2% 53.3% / 0.3);
+  background: hsl(var(--primary) / 0.1);
+  border: 1px solid hsl(var(--primary) / 0.3);
   border-radius: 6px;
   margin-bottom: 1rem;
-  color: hsl(221.2 83.2% 53.3%);
+  color: hsl(var(--primary));
   font-size: 0.875rem;
 }
 
 .search-mode-banner strong {
-  color: hsl(210 17% 98%);
+  color: hsl(var(--foreground));
 }
 
 .search-mode-banner button {
   background: transparent;
-  border: 1px solid hsl(221.2 83.2% 53.3%);
-  color: hsl(221.2 83.2% 53.3%);
+  border: 1px solid hsl(var(--primary));
+  color: hsl(var(--primary));
   padding: 0.375rem 0.75rem;
   border-radius: 4px;
   font-size: 0.8125rem;
@@ -204,7 +204,7 @@
 }
 
 .search-mode-banner button:hover {
-  background: hsl(221.2 83.2% 53.3% / 0.2);
+  background: hsl(var(--primary) / 0.2);
 }
 
 /* Error States */
@@ -213,8 +213,8 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
+  background: hsl(var(--destructive) / 0.1);
+  color: hsl(var(--destructive));
   border-radius: 0.5rem;
   font-size: 0.85rem;
   margin-bottom: 1rem;
@@ -225,7 +225,7 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.5rem 1rem;
-  color: #ef4444;
+  color: hsl(var(--destructive));
   font-size: 0.875rem;
 }
 
@@ -236,14 +236,14 @@
   justify-content: center;
   gap: 1rem;
   padding: 3rem;
-  color: #ef4444;
+  color: hsl(var(--destructive));
   text-align: center;
 }
 
 .retry-btn {
   padding: 0.5rem 1rem;
-  background: hsl(217 91% 60%);
-  color: white;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
   border: none;
   border-radius: 0.375rem;
   cursor: pointer;
@@ -252,13 +252,13 @@
 }
 
 .retry-btn:hover {
-  background: hsl(217 91% 55%);
+  background: hsl(var(--primary) / 0.9);
 }
 
 /* Orders Section */
 .orders-section {
-  background: hsl(210 11% 18%);
-  border: 1px solid hsl(210 11% 28%);
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
   border-radius: 8px;
   overflow: hidden;
 }
@@ -271,7 +271,7 @@
   justify-content: center;
   gap: 1rem;
   padding: 3rem;
-  color: hsl(210 9% 65%);
+  color: hsl(var(--muted-foreground));
 }
 
 .empty-state svg {
@@ -294,9 +294,9 @@
   text-align: right;
   font-weight: 500;
   font-size: 0.8125rem;
-  color: hsl(210 9% 70%);
-  background: hsl(210 11% 22%);
-  border-bottom: 1px solid hsl(210 11% 28%);
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted));
+  border-bottom: 1px solid hsl(var(--border));
   white-space: nowrap;
 }
 
@@ -304,8 +304,8 @@
   padding: 0.75rem 1rem;
   text-align: right;
   font-size: 0.875rem;
-  color: hsl(210 17% 90%);
-  border-bottom: 1px solid hsl(210 11% 24%);
+  color: hsl(var(--foreground));
+  border-bottom: 1px solid hsl(var(--border) / 0.5);
 }
 
 .orders-table tbody tr:last-child td {
@@ -313,16 +313,16 @@
 }
 
 .orders-table tbody tr:hover {
-  background: hsl(210 11% 22%);
+  background: hsl(var(--accent));
 }
 
 /* Orders Count */
 .orders-count {
   padding: 0.75rem 1rem;
   font-size: 0.875rem;
-  color: hsl(210 9% 65%);
-  border-top: 1px solid hsl(210 11% 28%);
-  background: hsl(210 11% 20%);
+  color: hsl(var(--muted-foreground));
+  border-top: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
 }
 
 /* Spin animation */
@@ -344,10 +344,27 @@
   .page-header {
     flex-direction: column;
     align-items: stretch;
+    gap: 0.75rem;
   }
 
   .page-header h1 {
     font-size: 1.25rem;
+  }
+
+  /* Header controls stack */
+  .header-controls {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .global-search {
+    width: 100%;
+    height: 44px;
+  }
+
+  .global-search input {
+    min-width: auto;
+    flex: 1;
   }
 
   .day-search {
@@ -356,5 +373,83 @@
 
   .day-search input {
     flex: 1;
+  }
+
+  /* Touch-friendly day tabs */
+  .day-tab {
+    min-height: 44px;
+    padding: 0.625rem 1rem;
+  }
+
+  /* Table improvements */
+  .orders-table th,
+  .orders-table td {
+    padding: 0.625rem 0.75rem;
+    font-size: 0.8125rem;
+  }
+
+  .orders-count {
+    text-align: center;
+  }
+}
+
+/* Mobile phones */
+@media (max-width: 480px) {
+  .orders-page {
+    padding: 0.75rem;
+  }
+
+  .page-header h1 {
+    font-size: 1.125rem;
+  }
+
+  /* Compact search */
+  .global-search,
+  .day-search {
+    height: 44px;
+  }
+
+  .global-search input,
+  .day-search input {
+    font-size: 1rem; /* Prevent zoom on iOS */
+  }
+
+  .global-search .search-btn,
+  .day-search button {
+    padding: 0.5rem 0.875rem;
+    font-size: 0.8125rem;
+  }
+
+  /* Compact day tabs */
+  .day-tab {
+    font-size: 0.75rem;
+    padding: 0.625rem 0.875rem;
+  }
+
+  /* More compact table */
+  .orders-table th,
+  .orders-table td {
+    padding: 0.5rem 0.625rem;
+    font-size: 0.75rem;
+  }
+
+  .orders-table th {
+    font-size: 0.6875rem;
+  }
+
+  /* Search mode banner */
+  .search-mode-banner {
+    flex-direction: column;
+    gap: 0.75rem;
+    text-align: center;
+  }
+
+  .search-mode-banner button {
+    width: 100%;
+  }
+
+  /* Error and retry compact */
+  .retry-btn {
+    padding: 0.625rem 1rem;
   }
 }

@@ -1,7 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-  /* Lighter Grey Theme */
+  color-scheme: dark;
+  /* Dark Theme (Default) */
   --background: 210 11% 15%;     /* #1e2433 - dark blue-grey base */
   --foreground: 210 17% 98%;     /* #f7f8fa - off-white text */
   --card: 210 11% 18%;           /* #252b3a - slightly lighter cards */
@@ -19,6 +20,79 @@
   --input: 210 11% 28%;
   --ring: 217 91% 60%;
   --radius: 0.5rem;
+  
+  /* Skeleton loading states */
+  --skeleton-base: 210 11% 12%;
+  --skeleton-highlight: 210 11% 18%;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  /* Light Theme - Professional UI Design Principles */
+  
+  /* Soft neutral base - NOT pure white */
+  --background: 220 14% 98%;     /* #F9FAFB - soft neutral, reduces eye strain */
+  
+  /* High contrast text for readability (7:1 ratio) */
+  --foreground: 215 25% 17%;     /* #1F2937 - deep gray-blue, excellent readability */
+  
+  /* Pure white cards for depth against soft background */
+  --card: 0 0% 100%;             /* #FFFFFF - creates layered depth */
+  --card-foreground: 215 25% 17%;
+  
+  /* Brand-tinted primary - slightly darker for outdoor readability */
+  --primary: 217 91% 50%;        /* #1D4ED8 - deeper blue, better contrast */
+  --primary-foreground: 0 0% 100%;
+  
+  /* Warm-tinted grays for subtle depth */
+  --secondary: 220 14% 96%;      /* #F3F4F6 - warm light gray */
+  --secondary-foreground: 215 20% 25%;
+  
+  /* Muted backgrounds with warmth */
+  --muted: 220 13% 95%;          /* #F0F1F3 - very subtle warm gray */
+  --muted-foreground: 215 16% 47%; /* #64748B - medium contrast for secondary text */
+  
+  /* Subtle accent with brand tint */
+  --accent: 220 14% 93%;         /* #E5E7EB - light accent */
+  --accent-foreground: 215 25% 17%;
+  
+  /* Clear, saturated destructive color */
+  --destructive: 0 84% 48%;      /* #DC2626 - clear red for errors */
+  
+  /* Visible borders with warmth */
+  --border: 220 13% 88%;         /* #D1D5DB - clear separation */
+  --input: 220 13% 91%;
+  --ring: 217 91% 50%;
+  
+  /* Skeleton loading states */
+  --skeleton-base: 210 15% 80%;
+  --skeleton-highlight: 210 15% 91%;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--background));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 5px;
+  border: 2px solid hsl(var(--background));
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground));
+}
+
+/* Firefox Scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) hsl(var(--background));
 }
 
 * {
@@ -110,9 +184,18 @@ body {
   transition: all 0.2s;
 }
 
+[data-theme="light"] .stat-card {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+}
+
 .stat-card:hover {
-  border-color: hsl(var(--border) / 1.5);
+  border-color: hsl(var(--primary) / 0.3);
   background: hsl(var(--accent));
+}
+
+[data-theme="light"] .stat-card:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+  border-color: hsl(var(--primary) / 0.2);
 }
 
 .stat-icon {
@@ -153,6 +236,11 @@ body {
   border-radius: var(--radius);
   padding: 1.5rem;
   margin-bottom: 1.5rem;
+}
+
+[data-theme="light"] .upload-card,
+[data-theme="light"] .data-card {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
 }
 
 /* Upload Zone */
@@ -224,10 +312,20 @@ body {
   background: hsl(var(--primary));
   color: hsl(var(--primary-foreground));
   padding: 0.5rem 1rem;
+  font-weight: 500;
+}
+
+[data-theme="light"] .btn-primary {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
 .btn-primary:hover:not(:disabled) {
   background: hsl(217 91% 55%);
+}
+
+[data-theme="light"] .btn-primary:hover:not(:disabled) {
+  background: hsl(217 91% 45%);
+  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2), 0 2px 4px -1px rgba(59, 130, 246, 0.1);
 }
 
 .btn-secondary {
@@ -352,11 +450,16 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: hsl(var(--background));
+  background: hsl(var(--card));
   border: 1px solid hsl(var(--border));
   border-radius: calc(var(--radius) - 2px);
   padding: 0 0.75rem;
   height: 36px;
+  transition: all 0.2s;
+}
+
+[data-theme="light"] .search-bar {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
 }
 
 .search-bar:focus-within {
@@ -364,15 +467,26 @@ body {
   outline-offset: 2px;
 }
 
+[data-theme="light"] .search-bar:focus-within {
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 3px hsl(var(--ring) / 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  outline: none;
+}
+
 .search-bar input {
   background: transparent;
   border: none;
   color: hsl(var(--foreground));
   font-size: 0.875rem;
+  font-weight: 400;
   outline: none;
   flex: 1;
   height: 100%;
   font-family: inherit;
+}
+
+[data-theme="light"] .search-bar input {
+  font-weight: 500;
 }
 
 .search-bar input::placeholder {
@@ -385,6 +499,10 @@ body {
   border-radius: var(--radius);
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+[data-theme="light"] .table-wrapper {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
 }
 
 .modern-table {
@@ -428,6 +546,10 @@ body {
   background: hsl(var(--muted) / 0.3);
 }
 
+[data-theme="light"] .modern-table tbody tr:hover {
+  background: hsl(var(--muted) / 0.7);
+}
+
 .code {
   font-family: ui-monospace, monospace;
   font-size: 0.8125rem;
@@ -447,6 +569,11 @@ body {
 .weight-cell {
   font-weight: 500;
   font-variant-numeric: tabular-nums;
+}
+
+[data-theme="light"] .amount-cell,
+[data-theme="light"] .weight-cell {
+  font-weight: 600;
 }
 
 /* Badges */
@@ -613,7 +740,12 @@ body {
 }
 
 .skeleton {
-  background: linear-gradient(90deg, hsl(var(--muted)) 25%, hsl(var(--accent)) 50%, hsl(var(--muted)) 75%);
+  background: linear-gradient(
+    90deg, 
+    hsl(var(--skeleton-base)) 0%, 
+    hsl(var(--skeleton-highlight)) 50%, 
+    hsl(var(--skeleton-base)) 100%
+  );
   background-size: 200% 100%;
   border-radius: calc(var(--radius) - 4px);
   animation: shimmerSkeleton 2s ease-in-out infinite;

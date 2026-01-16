@@ -287,8 +287,108 @@
     gap: 1rem;
   }
 
+  .dashboard-header h1 {
+    font-size: 1.25rem;
+  }
+
+  /* Touch-friendly refresh button */
+  .refresh-btn {
+    min-height: 44px;
+  }
+
+  /* Stats grid improvement */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.875rem;
+  }
+
+  .stat-card {
+    padding: 1rem;
+  }
+
+  /* Recent items */
   .recent-item {
     grid-template-columns: 1fr;
     gap: 0.5rem;
+  }
+
+  /* Status grid better wrapping */
+  .status-grid {
+    gap: 0.5rem;
+  }
+}
+
+/* Small tablets and large phones */
+@media (max-width: 640px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Mobile phones */
+@media (max-width: 480px) {
+  .dashboard-page {
+    padding: 0.75rem;
+  }
+
+  .dashboard-header h1 {
+    font-size: 1.125rem;
+  }
+
+  /* Compact stats */
+  .stats-grid {
+    gap: 0.75rem;
+  }
+
+  .stat-card {
+    padding: 0.875rem;
+  }
+
+  .stat-card .stat-icon {
+    width: 42px;
+    height: 42px;
+  }
+
+  .stat-value {
+    font-size: 1.25rem;
+  }
+
+  .stat-label {
+    font-size: 0.75rem;
+  }
+
+  /* Compact sections */
+  .status-section,
+  .recent-section {
+    padding: 1rem;
+  }
+
+  .status-section h2,
+  .recent-section h2 {
+    font-size: 0.9375rem;
+  }
+
+  /* Status items */
+  .status-item {
+    padding: 0.5rem 0.625rem;
+    font-size: 0.75rem;
+  }
+
+  /* Recent items compact */
+  .recent-code {
+    font-size: 0.75rem;
+  }
+
+  .recent-client {
+    font-size: 0.8125rem;
+  }
+
+  .recent-city,
+  .recent-status {
+    font-size: 0.6875rem;
+  }
+
+  .recent-amount {
+    font-size: 0.8125rem;
   }
 }
