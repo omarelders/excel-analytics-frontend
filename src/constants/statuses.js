@@ -13,7 +13,9 @@ export const CHANGEABLE_STATUSES = [
 // Statuses that orders can be changed TO (target statuses)
 export const TARGET_STATUSES = [
   'تم التسليم',
-  'مرتجع'
+  'مرتجع',
+  'تسليم جزئي',
+  'قيد التوصيل'
 ]
 
 // All possible statuses

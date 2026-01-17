@@ -6,6 +6,7 @@ import AllOrdersPage from './pages/AllOrders'
 import PaymentProcessingPage from './pages/PaymentProcessing'
 import PaymentDataPage from './pages/PaymentData'
 import ShipmentDataPage from './pages/ShipmentData'
+import AnalyticsPage from './pages/Analytics'
 import './App.css'
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
             <Route path="/payment-processing" element={<PaymentProcessingPage />} />
             <Route path="/payment-data/:fileId" element={<PaymentDataPage />} />
             <Route path="/shipment-data/:fileId" element={<ShipmentDataPage />} />
+            <Route path="/analytics" element={<AnalyticsPage />} />
           </Routes>
         </main>
       </div>

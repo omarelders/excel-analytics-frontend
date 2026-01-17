@@ -11,6 +11,11 @@ export default defineConfig({
       '/shipments': 'http://127.0.0.1:8000',
       '/payments': 'http://127.0.0.1:8000',
       '/statuses': 'http://127.0.0.1:8000',
+      // Use /api/analytics for the API to avoid conflict with frontend route
+      '/api/analytics': {
+        target: 'http://127.0.0.1:8000',
+        rewrite: (path) => path.replace(/^\/api/, '')
+      },
     }
   }
 })

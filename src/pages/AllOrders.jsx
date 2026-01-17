@@ -1,20 +1,22 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import api from '../api'
-import { Search, ChevronLeft, ChevronRight, ChevronFirst, ChevronLast, Package, DollarSign, Filter, X, Loader2, AlertCircle, Check, Calendar, ChevronDown, Trash2, Pencil, Edit3 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronFirst, ChevronLast, Package, DollarSign, Filter, X, Loader2, AlertCircle, Check, Calendar, ChevronDown, Trash2, Pencil, Edit3, BarChart3 } from 'lucide-react'
 import { getStatusColor } from '../constants/statuses'
 import TableSkeleton from '../components/TableSkeleton'
+import SearchAutocomplete from '../components/SearchAutocomplete'
 import './AllOrders.css'
 
 const PAGE_SIZE = 100
 
 function AllOrdersPage() {
+  const navigate = useNavigate()
   const [shipments, setShipments] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [currentPage, setCurrentPage] = useState(0)
   const [totalCount, setTotalCount] = useState(0)
   const [searchTerm, setSearchTerm] = useState('')
-  const [searchInput, setSearchInput] = useState('')
   
   // Filter states
   const [priceTypeFilter, setPriceTypeFilter] = useState('')
@@ -192,9 +194,9 @@ function AllOrdersPage() {
     fetchStatuses() // Fetch available statuses from backend
   }, [dateFrom, dateTo])
 
-  const handleSearch = (e) => {
-    e.preventDefault()
-    setSearchTerm(searchInput)
+  // Handle search from autocomplete component
+  const handleSearch = (value) => {
+    setSearchTerm(value)
     setCurrentPage(0)
   }
 
@@ -388,42 +390,41 @@ function AllOrdersPage() {
       {/* Stats Bar */}
       <div className="stats-bar">
         <div className="stat-item clickable" onClick={() => setShowStatsPopup(true)}>
-          <Package size={20} />
+          <div className="stat-icon">
+            <Package size={20} />
+          </div>
           <div className="stat-info">
             <span className="stat-label">Total Orders</span>
             <span className="stat-value">{stats.totalOrders.toLocaleString()}</span>
           </div>
         </div>
         <div className="stat-item">
-          <DollarSign size={20} />
+          <div className="stat-icon">
+            <DollarSign size={20} />
+          </div>
           <div className="stat-info">
             <span className="stat-label">Total Value</span>
             <span className="stat-value">{stats.totalPrice.toLocaleString()} EGP</span>
+          </div>
+        </div>
+        <div className="stat-item clickable analytics-card" onClick={() => navigate('/analytics')}>
+          <div className="stat-icon">
+            <BarChart3 size={20} />
+          </div>
+          <div className="stat-info">
+            <span className="stat-label">Analytics</span>
+            <span className="stat-value">View Dashboard</span>
           </div>
         </div>
       </div>
 
       {/* Controls */}
       <div className="controls-bar">
-        <form className="search-form" onSubmit={handleSearch}>
-          <Search size={16} />
-          <input
-            type="text"
-            placeholder="Search orders..."
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-          />
-          {searchTerm && (
-            <button 
-              type="button" 
-              className="clear-btn" 
-              onClick={() => { setSearchInput(''); setSearchTerm(''); setCurrentPage(0); }}
-            >
-              <X size={14} />
-            </button>
-          )}
-          <button type="submit" className="search-btn">Search</button>
-        </form>
+        <SearchAutocomplete 
+          onSearch={handleSearch}
+          placeholder="Search by code, client, recipient, city..."
+          debounceMs={200}
+        />
 
         <button 
           className={`filter-toggle ${showFilters ? 'active' : ''}`}
