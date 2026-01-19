@@ -3,11 +3,17 @@
  * This provides a local fallback, but should be synced with the backend /statuses endpoint.
  */
 
-// Statuses from which orders CAN be changed (source statuses)
+// ALL statuses can now be changed (no restrictions on source status)
+// Synced with backend constants.py
 export const CHANGEABLE_STATUSES = [
   'طلب الشحن',
   'طلب شحن',
-  'تم الاستلام بالمخزن'
+  'تم الاستلام بالمخزن',
+  'قيد التوصيل',
+  'تم التسليم',
+  'مرتجع',
+  'تسليم جزئي',
+  'ملغى'
 ]
 
 // Statuses that orders can be changed TO (target statuses)
@@ -18,12 +24,9 @@ export const TARGET_STATUSES = [
   'قيد التوصيل'
 ]
 
-// All possible statuses
+// All possible statuses (unique values only)
 export const ALL_STATUSES = [
-  ...CHANGEABLE_STATUSES,
-  ...TARGET_STATUSES,
-  'ملغى',
-  'قيد التوصيل'
+  ...new Set([...CHANGEABLE_STATUSES, ...TARGET_STATUSES])
 ]
 
 // Status display colors
@@ -32,7 +35,7 @@ export const STATUS_COLORS = {
   'تم الاستلام بالمخزن': 'info',
   'طلب الشحن': 'pending',
   'طلب شحن': 'pending',
-  'مرتجع': 'error',
+  'مرتجع': 'warning',
   'ملغى': 'error',
   'قيد التوصيل': 'info',
   'تسليم جزئي': 'warning'
