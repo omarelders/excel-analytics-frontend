@@ -130,6 +130,15 @@ function HomePage() {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
 
+      // Check if the backend returned an error status
+      if (response.data.status === 'error') {
+        setStatus({
+          type: 'error',
+          message: response.data.message || 'Upload failed. Please try again.'
+        })
+        return
+      }
+
       const msg = response.data.duplicates_skipped > 0
         ? `${response.data.rows_inserted} rows inserted, ${response.data.duplicates_skipped} duplicates skipped`
         : `${response.data.rows_inserted} rows inserted successfully`
@@ -145,12 +154,13 @@ function HomePage() {
     } catch (error) {
       setStatus({
         type: 'error',
-        message: error.response?.data?.detail || 'Upload failed. Please try again.',
+        message: error.response?.data?.detail || error.response?.data?.message || 'Upload failed. Please try again.',
       })
     } finally {
       setLoading(false)
     }
   }
+
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '-'
