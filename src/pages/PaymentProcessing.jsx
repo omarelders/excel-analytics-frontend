@@ -7,7 +7,8 @@ import {
   AlertCircle, 
   Loader2, 
   FileSpreadsheet,
-  Trash2
+  Trash2,
+  Settings
 } from 'lucide-react'
 import FilesGridSkeleton from '../components/FilesGridSkeleton'
 import './PaymentProcessing.css'
@@ -251,6 +252,18 @@ function PaymentProcessingPage() {
             </div>
           )}
         </div>
+      </div>
+      
+      {/* Settings / Recycle Bin Link */}
+      <div className="settings-link-section" style={{ marginTop: '2rem', display: 'flex', justifyContent: 'center' }}>
+        <button 
+          className="btn btn-outline" 
+          onClick={() => navigate('/settings')}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+        >
+          <Settings size={18} />
+          <span>Go to Settings / Recycle Bin</span>
+        </button>
       </div>
     </div>
   )
