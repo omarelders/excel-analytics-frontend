@@ -91,7 +91,7 @@
 }
 
 .orders-table th {
-  background: var(--table-header-bg);
+  /* background: var(--table-header-bg); */
   color: var(--text-secondary);
   font-weight: 500;
   position: sticky;

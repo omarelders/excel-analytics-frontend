@@ -537,6 +537,7 @@ body {
 .modern-table {
   width: 100%;
   border-collapse: collapse;
+  border-spacing: 0;
   min-width: 800px;
 }
 
@@ -557,10 +558,13 @@ body {
 
 .modern-table td {
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid hsl(var(--border) / 0.5);
+  border-bottom: 1px solid hsl(var(--border));
   text-align: right;
   font-size: 0.875rem;
   height: 52px;
+  position: relative;
+  z-index: 1;
+  background-color: hsl(var(--card));
 }
 
 .modern-table tbody tr:last-child td {
@@ -1081,23 +1085,6 @@ html {
   position: relative;
 }
 
-.table-wrapper::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 30px;
-  background: linear-gradient(to left, hsl(var(--card)), transparent);
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.table-wrapper.scrollable::after {
-  opacity: 1;
-}
-
 @media (max-width: 1024px) {
   .container {
     padding: 1.5rem 1rem;
@@ -1198,9 +1185,6 @@ html {
     border-right: none;
   }
   
-  .table-wrapper::after {
-    opacity: 1;
-  }
 
   .modern-table th,
   .modern-table td {
