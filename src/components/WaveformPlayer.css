@@ -1,0 +1,133 @@
+.waveform-player {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 12px;
+  backdrop-filter: blur(4px);
+}
+
+/* Play/Pause Button */
+.waveform-play-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  background: rgba(255, 255, 255, 0.5);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: inherit;
+}
+
+.waveform-play-btn:hover {
+  background: rgba(255, 255, 255, 0.7);
+  transform: scale(1.1);
+}
+
+/* Waveform Track - Seekable area */
+.waveform-track {
+  position: relative;
+  flex: 1;
+  height: 36px;
+  cursor: pointer;
+  border-radius: 6px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.08);
+  user-select: none;
+}
+
+.waveform-track:hover {
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.waveform-bars {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+  padding: 4px 2px;
+  gap: 1.5px;
+}
+
+.waveform-bar {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 2px;
+  transition: all 0.1s ease;
+  min-width: 2px;
+  max-width: 5px;
+}
+
+/* Played bars - different color */
+.waveform-bar.played {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+/* Playhead indicator */
+.waveform-playhead {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 1px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  transition: left 0.05s linear;
+}
+
+/* Time Display */
+.waveform-time {
+  font-size: 0.65rem;
+  font-weight: 600;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  opacity: 0.75;
+  white-space: nowrap;
+  min-width: 55px;
+  text-align: right;
+}
+
+/* Playing animation - subtle pulse on active bars */
+.waveform-player.playing .waveform-bar.played {
+  animation: barPulse 0.8s ease-in-out infinite;
+  animation-delay: calc(var(--bar-index) * 0.015s);
+}
+
+@keyframes barPulse {
+  0%, 100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(1.08);
+  }
+}
+
+/* Hover effect - show where you'll seek */
+.waveform-track:active .waveform-playhead {
+  background: rgba(0, 0, 0, 0.9);
+  width: 3px;
+}
+
+/* Responsive */
+@media (max-width: 400px) {
+  .waveform-player {
+    gap: 0.4rem;
+    padding: 0.5rem;
+  }
+  
+  .waveform-play-btn {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+  }
+  
+  .waveform-time {
+    font-size: 0.6rem;
+    min-width: 45px;
+  }
+}

@@ -83,6 +83,11 @@
   color: hsl(221.2 83.2% 53.3%);
 }
 
+.stat-item.orders-day-card .stat-value {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
 /* Stats Popup */
 .stats-popup-overlay {
   position: fixed;
@@ -1071,11 +1076,15 @@
     font-size: 0.9375rem;
   }
 
-  /* Compact table */
+  /* Improve spacing on mobile */
   .orders-table th,
   .orders-table td {
-    padding: 0.5rem 0.625rem;
-    font-size: 0.8125rem;
+    padding: 0.5rem 0.25rem;
+    font-size: 0.75rem;
+    /* Ensure no vertical borders or shadows */
+    border-left: none;
+    border-right: none;
+    box-shadow: none;
   }
 
   .orders-table th {

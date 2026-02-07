@@ -8,12 +8,18 @@ import PaymentDataPage from './pages/PaymentData'
 import ShipmentDataPage from './pages/ShipmentData'
 import AnalyticsPage from './pages/Analytics'
 import SettingsPage from './pages/Settings'
+import ContentCalendarPage from './pages/ContentCalendar'
+import IdeasPage from './pages/Ideas'
+import OfflineIndicator from './components/OfflineIndicator'
 import './App.css'
 
 function App() {
   return (
     <BrowserRouter>
+      {/* Global grain texture overlay */}
+      <div className="noise-overlay" />
       <div className="app">
+        <OfflineIndicator />
         <Navbar />
         <main className="main-content">
           <Routes>
@@ -25,6 +31,8 @@ function App() {
             <Route path="/shipment-data/:fileId" element={<ShipmentDataPage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/content-calendar" element={<ContentCalendarPage />} />
+            <Route path="/ideas" element={<IdeasPage />} />
           </Routes>
         </main>
       </div>

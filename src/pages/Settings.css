@@ -1,6 +1,7 @@
+/* Settings Page Styles - Theme Aware */
 
 .settings-page {
-  padding: 1rem;
+  padding: 1.5rem;
   max-width: 1400px;
   margin: 0 auto;
   min-height: calc(100vh - 80px);
@@ -15,13 +16,14 @@
   gap: 0.75rem;
   margin-bottom: 1rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid hsl(var(--border));
 }
 
 .settings-header h2 {
   font-size: 1.5rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: hsl(var(--foreground));
+  margin: 0;
 }
 
 .settings-section {
@@ -33,25 +35,48 @@
 .settings-section-title {
   font-size: 1.1rem;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: hsl(var(--muted-foreground));
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-/* Reusing table styles from RecycleBin.css for consistency */
+/* Table Card */
 .settings-table-card {
-  background: var(--card-bg);
+  background: hsl(var(--card));
   border-radius: 12px;
-  border: 1px solid var(--border-color);
+  border: 1px solid hsl(var(--border));
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   overflow: hidden;
   display: flex;
   flex-direction: column;
 }
 
+[data-theme="light"] .settings-table-card {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+}
+
 .settings-table-wrapper {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Empty and Loading States */
+.settings-empty,
+.settings-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 3rem 1.5rem;
+  color: hsl(var(--muted-foreground));
+  text-align: center;
+}
+
+.settings-empty svg,
+.settings-loading svg {
+  opacity: 0.5;
 }
 
 /* Helper styles */
@@ -62,4 +87,66 @@
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+/* Responsive - Tablet */
+@media (max-width: 768px) {
+  .settings-page {
+    padding: 1rem;
+    gap: 1.25rem;
+  }
+
+  .settings-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .settings-header h2 {
+    font-size: 1.25rem;
+  }
+
+  .settings-section-title {
+    font-size: 1rem;
+  }
+
+  .settings-table-card {
+    border-radius: 8px;
+  }
+
+  /* Make table full-width on mobile */
+  .settings-table-wrapper {
+    margin: 0 -1rem;
+    border-radius: 0;
+  }
+}
+
+/* Responsive - Mobile Phones */
+@media (max-width: 480px) {
+  .settings-page {
+    padding: 0.75rem;
+    gap: 1rem;
+  }
+
+  .settings-header {
+    padding-bottom: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .settings-header h2 {
+    font-size: 1.125rem;
+  }
+
+  .settings-section {
+    gap: 0.75rem;
+  }
+
+  .settings-section-title {
+    font-size: 0.9375rem;
+  }
+
+  .settings-empty,
+  .settings-loading {
+    padding: 2rem 1rem;
+  }
 }

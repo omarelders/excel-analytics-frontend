@@ -28,38 +28,38 @@ function DashboardPage() {
     setLoading(true)
     setError(null)
     try {
-      // Fetch shipments to calculate stats
-      const res = await api.get('/shipments', { params: { limit: 100 } })
-      const shipments = res.data.data || []
-      const total = res.data.total || 0
+      // Fetch analytics for accurate stats (uses full dataset)
+      const analyticsRes = await api.get('/api/analytics')
+      const analytics = analyticsRes.data
       
-      // Calculate statistics
-      const amounts = shipments.map(s => s['قيمة الطرد'] || 0)
-      const totalValue = amounts.reduce((a, b) => a + b, 0)
-      const avgValue = amounts.length > 0 ? totalValue / amounts.length : 0
-      
-      // Count unique clients and cities
-      const clients = new Set(shipments.map(s => s['العميل']).filter(Boolean))
-      const cities = new Set(shipments.map(s => s['مدينة المستلم']).filter(Boolean))
-      
-      // Count by status
+      // Convert status_distribution array to statusCounts object
       const statusCounts = {}
-      shipments.forEach(s => {
-        const status = s['الحالة'] || 'Unknown'
-        statusCounts[status] = (statusCounts[status] || 0) + 1
-      })
-
+      if (analytics.status_distribution) {
+        analytics.status_distribution.forEach(item => {
+          statusCounts[item.status] = item.count
+        })
+      }
+      
+      // Get unique cities count from top_cities
+      const cityCount = analytics.top_cities?.length || 0
+      
       setStats({
-        totalShipments: total,
-        totalValue,
-        avgValue,
-        clientCount: clients.size,
-        cityCount: cities.size,
+        totalShipments: analytics.summary?.total_shipments || 0,
+        totalValue: analytics.summary?.total_value || 0,
+        avgValue: analytics.summary?.total_shipments > 0 
+          ? (analytics.summary?.total_value || 0) / analytics.summary.total_shipments 
+          : 0,
+        deliveryRate: analytics.summary?.delivery_rate || 0,
+        clientCount: analytics.summary?.top_client ? 1 : 0, // We have top client info
+        topClient: analytics.summary?.top_client,
+        topClientCount: analytics.summary?.top_client_count || 0,
+        cityCount: cityCount,
         statusCounts
       })
       
-      // Get recent shipments (first 5)
-      setRecentShipments(shipments.slice(0, 5))
+      // Fetch recent shipments separately (just for the list, limit is fine here)
+      const recentRes = await api.get('/shipments', { params: { limit: 5 } })
+      setRecentShipments(recentRes.data.data || [])
     } catch (err) {
       console.error('Failed to fetch dashboard data:', err)
       setError(err.response?.data?.detail || 'Failed to load dashboard data')
@@ -129,7 +129,7 @@ function DashboardPage() {
           </div>
           <div className="stat-info">
             <span className="stat-value">{(stats?.totalValue || 0).toLocaleString()} EGP</span>
-            <span className="stat-label">Total Value (Top 100)</span>
+            <span className="stat-label">Total Value</span>
           </div>
         </div>
         

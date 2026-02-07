@@ -15,9 +15,10 @@ import './SearchAutocomplete.css'
 function SearchAutocomplete({ 
   onSearch, 
   placeholder = "Search orders...",
-  debounceMs = 250 
+  debounceMs = 250,
+  initialValue = ''
 }) {
-  const [inputValue, setInputValue] = useState('')
+  const [inputValue, setInputValue] = useState(initialValue)
   const [suggestions, setSuggestions] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
@@ -27,6 +28,12 @@ function SearchAutocomplete({
   const inputRef = useRef(null)
   const dropdownRef = useRef(null)
   const debounceTimer = useRef(null)
+
+  // Sync with initialValue from parent
+  useEffect(() => {
+    setInputValue(initialValue)
+  }, [initialValue])
+
 
   // Category icons and labels
   const categoryConfig = {

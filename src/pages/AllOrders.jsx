@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import api from '../api'
 import { ChevronLeft, ChevronRight, ChevronFirst, ChevronLast, Package, DollarSign, Filter, X, Loader2, AlertCircle, Check, Calendar, ChevronDown, Trash2, Pencil, Edit3, BarChart3 } from 'lucide-react'
 import { getStatusColor } from '../constants/statuses'
@@ -11,6 +11,7 @@ const PAGE_SIZE = 100
 
 function AllOrdersPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [shipments, setShipments] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -55,6 +56,7 @@ function AllOrdersPage() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [editData, setEditData] = useState({ code: '', amount: '', description: '' })
+  
 
   const fetchShipments = async (page = 0, search = '', dateFromVal = '', dateToVal = '') => {
     setLoading(true)
@@ -407,6 +409,15 @@ function AllOrdersPage() {
             <span className="stat-value">{stats.totalPrice.toLocaleString()} EGP</span>
           </div>
         </div>
+        <div className="stat-item clickable orders-day-card" onClick={() => navigate('/orders-by-day')}>
+          <div className="stat-icon">
+            <Calendar size={20} />
+          </div>
+          <div className="stat-info">
+            <span className="stat-label">Orders by Day</span>
+            <span className="stat-value">View Daily</span>
+          </div>
+        </div>
         <div className="stat-item clickable analytics-card" onClick={() => navigate('/analytics')}>
           <div className="stat-icon">
             <BarChart3 size={20} />
@@ -417,13 +428,14 @@ function AllOrdersPage() {
           </div>
         </div>
       </div>
-
+      
       {/* Controls */}
       <div className="controls-bar">
         <SearchAutocomplete 
           onSearch={handleSearch}
           placeholder="Search by code, client, recipient, city..."
           debounceMs={200}
+          initialValue={searchTerm}
         />
 
         <button 

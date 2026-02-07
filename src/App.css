@@ -1,5 +1,34 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
+/* Global Noise Overlay - Appears on every page and popup */
+.noise-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  
+  /* SVG-based fractal noise texture */
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.5'/%3E%3C/svg%3E");
+  
+  /* Subtle opacity - adjust to taste */
+  opacity: 0.05;
+  pointer-events: none; /* Clicks pass through */
+  z-index: 9998; /* High z-index but below modals (which are typically 9999+) */
+}
+
+/* Dark mode: reduce opacity slightly as grain is more visible on dark backgrounds */
+@media (prefers-color-scheme: dark) {
+  .noise-overlay {
+    opacity: 0.03;
+  }
+}
+
+/* Also respect data-theme attribute if present */
+[data-theme="dark"] .noise-overlay {
+  opacity: 0.03;
+}
+
 :root {
   color-scheme: dark;
   /* Dark Theme (Default) */
@@ -1029,6 +1058,46 @@ html {
 }
 
 /* Responsive Design */
+
+/* Safe area insets for notched devices */
+:root {
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-inset-left: env(safe-area-inset-left, 0px);
+  --safe-area-inset-right: env(safe-area-inset-right, 0px);
+}
+
+/* Mobile utility classes */
+.mobile-only {
+  display: none !important;
+}
+
+.desktop-only {
+  display: block;
+}
+
+/* Table scroll indicator */
+.table-wrapper {
+  position: relative;
+}
+
+.table-wrapper::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 30px;
+  background: linear-gradient(to left, hsl(var(--card)), transparent);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.table-wrapper.scrollable::after {
+  opacity: 1;
+}
+
 @media (max-width: 1024px) {
   .container {
     padding: 1.5rem 1rem;
@@ -1040,6 +1109,15 @@ html {
 }
 
 @media (max-width: 768px) {
+  /* Utility classes */
+  .mobile-only {
+    display: block !important;
+  }
+  
+  .desktop-only {
+    display: none !important;
+  }
+  
   .header-content {
     padding: 1rem;
   }
@@ -1050,10 +1128,12 @@ html {
 
   .container {
     padding: 1rem;
+    padding-bottom: calc(1rem + var(--safe-area-inset-bottom));
   }
 
   .stats-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
   }
 
   .stat-card {
@@ -1093,6 +1173,18 @@ html {
 
   .search-bar {
     width: 100%;
+    height: 44px;
+  }
+
+  /* Minimum touch target size of 44px */
+  .btn:not(.btn-icon) {
+    min-height: 44px;
+    width: 100%;
+  }
+  
+  .btn-icon {
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .data-controls .btn:not(.btn-icon) {
@@ -1105,35 +1197,89 @@ html {
     border-left: none;
     border-right: none;
   }
+  
+  .table-wrapper::after {
+    opacity: 1;
+  }
 
   .modern-table th,
   .modern-table td {
-    padding: 0.5rem 0.75rem;
+    padding: 0.625rem 0.75rem;
   }
 
   .modern-table th {
     font-size: 0.75rem;
   }
+  
+  /* Pagination touch targets */
+  .pagination-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  
+  .table-footer {
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem;
+  }
 }
 
 @media (max-width: 480px) {
+  .container {
+    padding: 0.75rem;
+    padding-bottom: calc(0.75rem + var(--safe-area-inset-bottom));
+  }
+  
   .app-title {
     font-size: 1.125rem;
+  }
+  
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 0.625rem;
+  }
+
+  .stat-card {
+    padding: 0.875rem;
+  }
+  
+  .stat-icon {
+    width: 38px;
+    height: 38px;
   }
 
   .stat-value {
     font-size: 1.125rem;
   }
+  
+  .stat-label {
+    font-size: 0.75rem;
+  }
+  
+  .upload-zone {
+    padding: 1.5rem 1rem;
+  }
 
   .modern-table th,
   .modern-table td {
-    padding: 0.5rem;
+    padding: 0.5rem 0.625rem;
     font-size: 0.75rem;
+  }
+  
+  .modern-table th {
+    font-size: 0.6875rem;
   }
 
   .badge {
     font-size: 0.625rem;
     padding: 0.2rem 0.5rem;
+  }
+  
+  /* Prevent iOS zoom on input focus */
+  input, 
+  textarea, 
+  select {
+    font-size: 16px !important;
   }
 }
 
@@ -1153,3 +1299,4 @@ html {
 .file-card-skeleton:nth-child(2) { animation-delay: 0.1s; }
 .file-card-skeleton:nth-child(3) { animation-delay: 0.15s; }
 .file-card-skeleton:nth-child(4) { animation-delay: 0.2s; }
+
