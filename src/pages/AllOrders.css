@@ -340,10 +340,32 @@
 }
 
 .filter-badge {
-  color: hsl(var(--primary));
-  font-size: 1.5rem;
-  line-height: 1;
-  margin-left: -0.25rem;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: hsl(var(--primary));
+  display: inline-block;
+  margin-left: 0.125rem;
+}
+
+.mobile-search-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 40px;
+  border: none;
+  border-radius: 10px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.mobile-search-btn:hover {
+  background: hsl(var(--primary) / 0.9);
 }
 
 .refresh-btn {
@@ -381,6 +403,10 @@
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
+}
+
+.edit-mode-label {
+  display: none;
 }
 
 .edit-mode-btn:hover {
@@ -902,8 +928,94 @@
   }
 
   .controls-bar {
-    flex-direction: column;
-    align-items: stretch;
+    display: flex;
+    flex-wrap: nowrap; /* Force single line */
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+
+  .controls-bar .search-autocomplete {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: none;
+  }
+  
+  /* Force form to be row and fill space */
+  .controls-bar .search-autocomplete .autocomplete-form {
+    display: flex;
+    flex-direction: row !important;
+    width: 100%;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+
+  .controls-bar .search-autocomplete .autocomplete-input-wrapper,
+  .controls-bar .search-autocomplete .autocomplete-input-wrapper input {
+    min-width: 0;
+  }
+
+  .controls-bar .filter-toggle {
+    width: 40px; /* Icon only width */
+    min-width: 40px;
+    padding: 0;
+    justify-content: center;
+    height: 40px; /* Explicit height */
+    flex-shrink: 0; /* Prevent shrinking */
+    flex: 0 0 40px;
+  }
+  
+  .controls-bar .filter-toggle span:not(.filter-badge) {
+    display: none; /* Hide 'Filters' text */
+  }
+  
+  .filter-badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    border: 1px solid hsl(var(--card));
+  }
+
+  /* Restore internal search button with icon only styles */
+  .controls-bar .search-autocomplete .search-submit-btn {
+    display: flex !important;
+    padding: 0;
+    width: 40px !important;
+    min-width: 40px;
+    height: 40px;
+    justify-content: center;
+    border-radius: 8px; /* Match filter button usually? Or keep component style */
+    flex: 0 0 40px;
+  }
+
+  .controls-bar .search-autocomplete .search-submit-btn .search-btn-text {
+    display: none;
+  }
+
+  .controls-bar .search-autocomplete .search-submit-btn .search-btn-icon {
+    display: block;
+  }
+
+  /* Hide external big search button */
+  .controls-bar .mobile-search-btn {
+    display: none;
+  }
+
+  .controls-bar .edit-mode-btn {
+    width: auto;
+    order: 10; /* Push to bottom if wrapped */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    flex: 0 0 auto;
+  }
+
+  .controls-bar .edit-mode-btn .edit-mode-label {
+    display: inline;
+    font-size: 0.875rem;
+    font-weight: 500;
   }
 
   .search-form {
@@ -958,8 +1070,21 @@
     align-items: center;
   }
 
+  /* Hide specific columns on mobile */
+  .orders-table th.date-cell,
+  .orders-table td.date-cell,
+  .orders-table th.client-cell,
+  .orders-table td.client-cell,
+  .orders-table th.price-type-cell,
+  .orders-table td.price-type-cell,
+  .orders-table th.weight-cell,
+  .orders-table td.weight-cell {
+    display: none;
+  }
+
   /* Touch-friendly buttons */
   .filter-toggle,
+  .mobile-search-btn,
   .refresh-btn,
   .edit-mode-btn {
     min-height: 44px;
@@ -1032,12 +1157,22 @@
 
   /* Compact controls */
   .controls-bar {
-    gap: 0.5rem;
+    gap: 0.625rem;
+  }
+
+  .controls-bar .edit-mode-btn {
+    width: 40px;
+    min-width: 40px;
+    padding: 0;
+  }
+
+  .controls-bar .edit-mode-btn .edit-mode-label {
+    display: none;
   }
 
   .search-form {
-    height: 44px;
-    padding: 0 0.625rem;
+    height: 40px; /* Match button height */
+    padding: 0 0.5rem;
   }
 
   .search-form input {
@@ -1548,3 +1683,4 @@
   opacity: 0.7;
   cursor: not-allowed;
 }
+

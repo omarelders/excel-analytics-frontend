@@ -14,6 +14,7 @@ import './SearchAutocomplete.css'
  */
 function SearchAutocomplete({ 
   onSearch, 
+  onInputChange,
   placeholder = "Search orders...",
   debounceMs = 250,
   initialValue = ''
@@ -73,6 +74,7 @@ function SearchAutocomplete({
   const handleInputChange = (e) => {
     const value = e.target.value
     setInputValue(value)
+    onInputChange?.(value)
 
     // Clear previous timer
     if (debounceTimer.current) {
@@ -88,6 +90,7 @@ function SearchAutocomplete({
   // Handle suggestion selection
   const handleSelect = (suggestion) => {
     setInputValue(suggestion.value)
+    onInputChange?.(suggestion.value)
     setIsOpen(false)
     setSuggestions([])
     onSearch(suggestion.value)
@@ -97,12 +100,14 @@ function SearchAutocomplete({
   const handleSubmit = (e) => {
     e.preventDefault()
     setIsOpen(false)
+    onInputChange?.(inputValue)
     onSearch(inputValue)
   }
 
   // Handle clear
   const handleClear = () => {
     setInputValue('')
+    onInputChange?.('')
     setSuggestions([])
     setIsOpen(false)
     onSearch('')
@@ -223,7 +228,8 @@ function SearchAutocomplete({
           )}
         </div>
         <button type="submit" className="search-submit-btn">
-          Search
+          <Search size={16} className="search-btn-icon" />
+          <span className="search-btn-text">Search</span>
         </button>
       </form>
 

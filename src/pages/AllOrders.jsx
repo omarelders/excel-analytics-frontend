@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import api from '../api'
-import { ChevronLeft, ChevronRight, ChevronFirst, ChevronLast, Package, DollarSign, Filter, X, Loader2, AlertCircle, Check, Calendar, ChevronDown, Trash2, Pencil, Edit3, BarChart3 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronFirst, ChevronLast, Package, DollarSign, Filter, X, Loader2, AlertCircle, Check, Calendar, ChevronDown, Trash2, Pencil, Edit3, BarChart3, Search } from 'lucide-react'
 import { getStatusColor } from '../constants/statuses'
 import TableSkeleton from '../components/TableSkeleton'
 import SearchAutocomplete from '../components/SearchAutocomplete'
@@ -18,6 +18,7 @@ function AllOrdersPage() {
   const [currentPage, setCurrentPage] = useState(0)
   const [totalCount, setTotalCount] = useState(0)
   const [searchTerm, setSearchTerm] = useState('')
+  const [searchDraft, setSearchDraft] = useState('')
   
   // Filter states
   const [priceTypeFilter, setPriceTypeFilter] = useState('')
@@ -199,6 +200,7 @@ function AllOrdersPage() {
   // Handle search from autocomplete component
   const handleSearch = (value) => {
     setSearchTerm(value)
+    setSearchDraft(value)
     setCurrentPage(0)
   }
 
@@ -433,9 +435,10 @@ function AllOrdersPage() {
       <div className="controls-bar">
         <SearchAutocomplete 
           onSearch={handleSearch}
-          placeholder="Search by code, client, recipient, city..."
+          onInputChange={setSearchDraft}
+          placeholder="Search code, client, recipient, city..."
           debounceMs={200}
-          initialValue={searchTerm}
+          initialValue={searchDraft}
         />
 
         <button 
@@ -444,7 +447,15 @@ function AllOrdersPage() {
         >
           <Filter size={16} />
           <span>Filters</span>
-          {hasActiveFilters && <span className="filter-badge">•</span>}
+          {hasActiveFilters && <span className="filter-badge" />}
+        </button>
+
+        <button
+          className="mobile-search-btn"
+          onClick={() => handleSearch(searchDraft)}
+        >
+          <Search size={16} />
+          <span>Search</span>
         </button>
 
         <button 
@@ -458,6 +469,7 @@ function AllOrdersPage() {
           title={isEditMode ? 'Exit edit mode' : 'Enter edit mode'}
         >
           <Pencil size={16} />
+          <span className="edit-mode-label">{isEditMode ? 'Editing' : 'Edit'}</span>
         </button>
       </div>
 
@@ -564,15 +576,15 @@ function AllOrdersPage() {
                       </th>
                     )}
                     <th>الكود</th>
-                    <th>التاريخ</th>
-                    <th>العميل</th>
+                    <th className="date-cell">التاريخ</th>
+                    <th className="client-cell">العميل</th>
                     <th>الوصف</th>
                     <th>الحالة</th>
                     <th>المستلم</th>
                     <th>المدينة</th>
                     <th>قيمة الطرد</th>
-                    <th>نوع السعر</th>
-                    <th>الوزن</th>
+                    <th className="price-type-cell">نوع السعر</th>
+                    <th className="weight-cell">الوزن</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -638,7 +650,7 @@ function AllOrdersPage() {
                       <td>{shipment['المستلم']}</td>
                       <td>{shipment['مدينة المستلم']}</td>
                       <td className="amount-cell">{shipment['قيمة الطرد']}</td>
-                      <td>{shipment['نوع السعر']}</td>
+                      <td className="price-type-cell">{shipment['نوع السعر']}</td>
                       <td className="weight-cell">{shipment['الوزن']}</td>
                     </tr>
                   ))}
@@ -780,3 +792,4 @@ function AllOrdersPage() {
 }
 
 export default AllOrdersPage
+
