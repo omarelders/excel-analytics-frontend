@@ -19,6 +19,22 @@ export function useAudioRecorder(maxDurationSeconds = 120) {
   const timerRef = useRef(null)
   const startTimeRef = useRef(null)
 
+  // Stop recording
+  const stopRecording = useCallback(() => {
+    const mediaRecorder = mediaRecorderRef.current
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop()
+    }
+
+    setIsRecording(false)
+    setIsPaused(false)
+
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+      timerRef.current = null
+    }
+  }, [])
+
   // Start recording
   const startRecording = useCallback(async () => {
     try {
@@ -95,21 +111,7 @@ export function useAudioRecorder(maxDurationSeconds = 120) {
         setError(`Recording failed: ${err.message}`)
       }
     }
-  }, [maxDurationSeconds, audioUrl])
-
-  // Stop recording
-  const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop()
-      setIsRecording(false)
-      setIsPaused(false)
-      
-      if (timerRef.current) {
-        clearInterval(timerRef.current)
-        timerRef.current = null
-      }
-    }
-  }, [isRecording])
+  }, [maxDurationSeconds, audioUrl, stopRecording])
 
   // Pause recording
   const pauseRecording = useCallback(() => {

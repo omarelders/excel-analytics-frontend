@@ -40,9 +40,6 @@ function DashboardPage() {
         })
       }
       
-      // Get unique cities count from top_cities
-      const cityCount = analytics.top_cities?.length || 0
-      
       setStats({
         totalShipments: analytics.summary?.total_shipments || 0,
         totalValue: analytics.summary?.total_value || 0,
@@ -50,10 +47,10 @@ function DashboardPage() {
           ? (analytics.summary?.total_value || 0) / analytics.summary.total_shipments 
           : 0,
         deliveryRate: analytics.summary?.delivery_rate || 0,
-        clientCount: analytics.summary?.top_client ? 1 : 0, // We have top client info
+        clientCount: analytics.summary?.unique_clients ?? (analytics.summary?.top_client ? 1 : 0),
         topClient: analytics.summary?.top_client,
         topClientCount: analytics.summary?.top_client_count || 0,
-        cityCount: cityCount,
+        cityCount: analytics.summary?.unique_cities ?? (analytics.top_cities?.length || 0),
         statusCounts
       })
       

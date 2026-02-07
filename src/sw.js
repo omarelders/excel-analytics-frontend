@@ -10,10 +10,28 @@ cleanupOutdatedCaches();
 // Precache resources from manifest
 precacheAndRoute(self.__WB_MANIFEST);
 
+const API_PATH_PREFIXES = [
+  '/api/',
+  '/shipments',
+  '/payments',
+  '/upload',
+  '/statuses',
+  '/notifications',
+  '/health',
+]
+
+const isApiPath = (pathname) =>
+  API_PATH_PREFIXES.some((prefix) => {
+    if (prefix.endsWith('/')) {
+      return pathname.startsWith(prefix)
+    }
+    return pathname === prefix || pathname.startsWith(`${prefix}/`)
+  })
+
 // API Caching - NetworkFirst
 // Try network first, fall back to cache if offline
 registerRoute(
-  ({ url }) => url.pathname.startsWith('/api/'),
+  ({ url }) => url.origin === self.location.origin && isApiPath(url.pathname),
   new NetworkFirst({
     cacheName: 'api-cache',
     plugins: [

@@ -8,6 +8,7 @@ import SearchAutocomplete from '../components/SearchAutocomplete'
 import './AllOrders.css'
 
 const PAGE_SIZE = 100
+const STATS_PAGE_SIZE = 500
 
 function AllOrdersPage() {
   const navigate = useNavigate()
@@ -91,30 +92,57 @@ function AllOrdersPage() {
   // Excludes "مرتجع" orders from total price calculation
   const fetchStats = async (dateFromVal = '', dateToVal = '') => {
     try {
-      const params = { limit: 1 }
-      if (dateFromVal) params.date_from = dateFromVal
-      if (dateToVal) params.date_to = dateToVal
-      
-      // Get filtered shipments count
-      const response = await api.get('/shipments', { params })
-      setStats(prev => ({ ...prev, totalOrders: response.data.total || 0 }))
-      
-      // For total price, fetch more data with same filters
-      const allParams = { limit: 1000 }
-      if (dateFromVal) allParams.date_from = dateFromVal
-      if (dateToVal) allParams.date_to = dateToVal
-      
-      const allData = await api.get('/shipments', { params: allParams })
-      // Exclude "مرتجع" orders from total price
-      const total = allData.data.data
-        .filter(s => s['الحالة'] !== 'مرتجع')
-        .reduce((sum, s) => sum + (s['قيمة الطرد'] || 0), 0)
-      setStats(prev => ({ ...prev, totalPrice: total }))
-      
+      const baseParams = {}
+      if (dateFromVal) baseParams.date_from = dateFromVal
+      if (dateToVal) baseParams.date_to = dateToVal
+
+      let offset = 0
+      let totalOrders = 0
+      let batchesFetched = 0
+      const maxBatches = 500 // Safety guard for very large datasets
+      const allShipments = []
+
+      // Fetch all filtered rows in pages so totals are not capped.
+      while (batchesFetched < maxBatches) {
+        const response = await api.get('/shipments', {
+          params: {
+            ...baseParams,
+            limit: STATS_PAGE_SIZE,
+            offset,
+          },
+        })
+
+        const pageData = response.data.data || []
+
+        if (batchesFetched === 0) {
+          totalOrders = response.data.total || 0
+        }
+
+        allShipments.push(...pageData)
+
+        if (pageData.length === 0 || allShipments.length >= totalOrders) {
+          break
+        }
+
+        offset += pageData.length
+        batchesFetched += 1
+      }
+
+      if (batchesFetched === maxBatches) {
+        console.warn('Stats fetch reached safety batch limit; data may be incomplete.')
+      }
+
+      // Exclude returned orders from total price
+      const total = allShipments
+        .filter(s => s['\u0627\u0644\u062d\u0627\u0644\u0629'] !== '\u0645\u0631\u062a\u062c\u0639')
+        .reduce((sum, s) => sum + (s['\u0642\u064a\u0645\u0629 \u0627\u0644\u0637\u0631\u062f'] || 0), 0)
+
+      setStats({ totalOrders, totalPrice: total })
+
       // Calculate status counts for popup
       const counts = {}
-      allData.data.data.forEach(s => {
-        const status = s['الحالة'] || 'غير معروف'
+      allShipments.forEach(s => {
+        const status = s['\u0627\u0644\u062d\u0627\u0644\u0629'] || '\u063a\u064a\u0631 \u0645\u0639\u0631\u0648\u0641'
         counts[status] = (counts[status] || 0) + 1
       })
       setStatusCounts(counts)

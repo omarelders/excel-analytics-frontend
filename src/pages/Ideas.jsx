@@ -173,32 +173,28 @@ function Ideas() {
     }
   }
 
-  const exportToCalendar = (note, e) => {
+  const exportToCalendar = async (note, e) => {
     e.stopPropagation()
-    
-    // Get existing calendar data
-    const calendarData = JSON.parse(localStorage.getItem('contentCalendarData') || '[]')
-    
+
     // Format today's date
     const today = new Date()
     const dateKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-    
-    // Create new calendar content from note
-    const newContent = {
-      id: Date.now(),
-      date: dateKey,
-      title: note.title,
-      type: 'video',
-      platforms: ['TikTok'],
-      status: 'To Shoot',
-      visualIdea: note.content
+
+    try {
+      await api.post('/api/content', {
+        date: dateKey,
+        title: note.title,
+        type: 'video',
+        platforms: ['TikTok'],
+        status: 'To Shoot',
+        visualIdea: note.content || ''
+      })
+
+      alert(`"${note.title}" exported to today's calendar!`)
+    } catch (error) {
+      console.error('Failed to export note to calendar:', error)
+      alert(error.response?.data?.detail || 'Failed to export note to calendar. Please try again.')
     }
-    
-    // Add to calendar data
-    const updatedCalendarData = [...calendarData, newContent]
-    localStorage.setItem('contentCalendarData', JSON.stringify(updatedCalendarData))
-    
-    alert(`"${note.title}" exported to today's calendar!`)
   }
 
   // Quick create note from color click
