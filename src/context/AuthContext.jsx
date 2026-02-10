@@ -2,6 +2,9 @@ import { createContext, useState, useContext, useEffect } from 'react'
 
 const AuthContext = createContext(null)
 
+// Use the same base URL pattern as api.js
+const API_BASE_URL = import.meta.env.VITE_API_URL || ''
+
 export const useAuth = () => {
   const context = useContext(AuthContext)
   if (!context) {
@@ -38,7 +41,7 @@ export function AuthProvider({ children }) {
   // Background validation - never shows loading screen on reload
   const validateSession = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/auth/me', {
+      const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
         credentials: 'include',
       })
       
@@ -65,9 +68,9 @@ export function AuthProvider({ children }) {
     formData.append('password', password)
     formData.append('remember_me', rememberMe)
 
-    const response = await fetch('http://localhost:8000/api/auth/login', {
+    const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
       method: 'POST',
-      credentials: 'include', // Accept cookies
+      credentials: 'include',
       body: formData,
     })
 
@@ -87,7 +90,7 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     try {
-      await fetch('http://localhost:8000/api/auth/logout', {
+      await fetch(`${API_BASE_URL}/api/auth/logout`, {
         method: 'POST',
         credentials: 'include',
       })

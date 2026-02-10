@@ -103,7 +103,7 @@ export default function Login() {
               onChange={(e) => setFormData({ ...formData, rememberMe: e.target.checked })}
             />
             <label htmlFor="rememberMe">
-              Remember me for 3 years
+              Remember me for 10 years
             </label>
           </div>
 
