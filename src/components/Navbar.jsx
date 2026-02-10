@@ -84,10 +84,15 @@ function Navbar() {
             </NavLink>
           </li>
         </ul>
-        {/* Desktop theme toggle */}
-        <div className="nav-theme-toggle">
-          <ThemeToggle />
+
+        {/* Logout & Theme Toggle Section */}
+        <div className="nav-actions">
+          {/* Desktop theme toggle */}
+          <div className="nav-theme-toggle">
+            <ThemeToggle />
+          </div>
         </div>
+
         {/* Mobile drawer footer */}
         <div className="nav-footer">
           <ThemeToggle />

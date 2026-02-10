@@ -80,6 +80,47 @@
   color: hsl(var(--primary));
 }
 
+/* Nav Actions Section */
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.nav-user-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.nav-username {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+}
+
+.logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  background: transparent;
+  border: 1.5px solid hsl(var(--border));
+  border-radius: 8px;
+  color: hsl(var(--foreground));
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.logout-btn:hover {
+  background: hsl(var(--accent));
+  border-color: hsl(var(--primary) / 0.3);
+  color: hsl(var(--primary));
+}
+
 /* Desktop theme toggle - visible on desktop */
 .nav-theme-toggle {
   display: flex;
@@ -220,6 +261,33 @@
   .nav-links a svg {
     width: 22px;
     height: 22px;
+  }
+  
+  /* Nav actions in mobile drawer */
+  .nav-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid hsl(var(--border));
+  }
+  
+  .nav-user-section {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+  
+  .nav-username {
+    text-align: center;
+    font-size: 1rem;
+  }
+  
+  .logout-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 0.875rem 1rem;
   }
   
   /* Hide desktop theme toggle on mobile */

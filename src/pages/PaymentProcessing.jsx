@@ -8,8 +8,11 @@ import {
   Loader2, 
   FileSpreadsheet,
   Trash2,
-  Settings
+  Settings,
+  LogOut,
+  User
 } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 import FilesGridSkeleton from '../components/FilesGridSkeleton'
 import './PaymentProcessing.css'
 
@@ -17,6 +20,7 @@ const MAX_FILE_SIZE_MB = 10
 
 function PaymentProcessingPage() {
   const navigate = useNavigate()
+  const { user, logout } = useAuth()
   const [file, setFile] = useState(null)
   const [status, setStatus] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -161,6 +165,10 @@ function PaymentProcessingPage() {
     })
   }
 
+  const handleLogout = async () => {
+    await logout()
+  }
+
   return (
     <div className="payment-page">
       <h1 className="page-title">💳 Payment Processing</h1>
@@ -254,16 +262,56 @@ function PaymentProcessingPage() {
         </div>
       </div>
       
-      {/* Settings / Recycle Bin Link */}
-      <div className="settings-link-section" style={{ marginTop: '2rem', display: 'flex', justifyContent: 'center' }}>
+      {/* Settings & User Section */}
+      <div className="settings-link-section" style={{ 
+        marginTop: '3rem', 
+        display: 'flex', 
+        flexDirection: 'column',
+        alignItems: 'center', 
+        gap: '1rem',
+        paddingTop: '2rem',
+        borderTop: '1px solid var(--border)'
+      }}>
         <button 
           className="btn btn-outline" 
           onClick={() => navigate('/settings')}
-          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: '240px', justifyContent: 'center' }}
         >
           <Settings size={18} />
           <span>Go to Settings / Recycle Bin</span>
         </button>
+
+        {user && (
+          <div className="user-actions" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div className="user-badge" style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '0.5rem',
+              color: 'var(--text-secondary)',
+              fontSize: '0.9rem',
+              padding: '0.5rem 1rem',
+              background: 'var(--card-bg-secondary)',
+              borderRadius: '8px'
+            }}>
+              <User size={16} />
+              <span>{user.username}</span>
+            </div>
+            
+            <button 
+              className="btn btn-ghost" 
+              onClick={handleLogout}
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.5rem',
+                color: 'hsl(0, 84%, 60%)'
+              }}
+            >
+              <LogOut size={18} />
+              <span>Logout</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
