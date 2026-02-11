@@ -70,11 +70,12 @@ function AllOrdersPage() {
       if (dateToVal) params.date_to = dateToVal
       
       const response = await api.get('/shipments', { params })
-      setShipments(response.data.data || [])
-      setTotalCount(response.data.total || 0)
+      const rows = Array.isArray(response?.data?.data) ? response.data.data : []
+      setShipments(rows)
+      setTotalCount(Number(response?.data?.total) || 0)
       
       // Extract unique price types
-      const types = [...new Set(response.data.data.map(s => s['نوع السعر']).filter(Boolean))]
+      const types = [...new Set(rows.map(s => s['نوع السعر']).filter(Boolean))]
       setPriceTypes(prev => {
         const combined = [...new Set([...prev, ...types])]
         return combined

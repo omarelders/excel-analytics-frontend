@@ -1,6 +1,30 @@
 {
   "rewrites": [
     {
+      "source": "/shipments/:path*",
+      "destination": "https://our-shipping-app-8d9c08b8da37.herokuapp.com/shipments/:path*"
+    },
+    {
+      "source": "/upload/:path*",
+      "destination": "https://our-shipping-app-8d9c08b8da37.herokuapp.com/upload/:path*"
+    },
+    {
+      "source": "/payments/:path*",
+      "destination": "https://our-shipping-app-8d9c08b8da37.herokuapp.com/payments/:path*"
+    },
+    {
+      "source": "/notifications/:path*",
+      "destination": "https://our-shipping-app-8d9c08b8da37.herokuapp.com/notifications/:path*"
+    },
+    {
+      "source": "/statuses",
+      "destination": "https://our-shipping-app-8d9c08b8da37.herokuapp.com/statuses"
+    },
+    {
+      "source": "/health",
+      "destination": "https://our-shipping-app-8d9c08b8da37.herokuapp.com/health"
+    },
+    {
       "source": "/api/:path*",
       "destination": "https://our-shipping-app-8d9c08b8da37.herokuapp.com/api/:path*"
     },
