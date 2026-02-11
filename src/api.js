@@ -1,10 +1,10 @@
 import axios from 'axios';
+import { API_BASE_URL } from './config/apiBaseUrl';
+import { addToSyncQueue } from './utils/offlineStorage';
 
 // API Configuration
 // In development, the Vite proxy handles /api routes
 // In production, set VITE_API_URL environment variable
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
-
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
@@ -12,8 +12,6 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
-
-import { addToSyncQueue } from './utils/offlineStorage';
 
 // ========== REQUEST INTERCEPTOR ==========
 api.interceptors.request.use(

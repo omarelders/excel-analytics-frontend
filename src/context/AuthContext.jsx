@@ -1,9 +1,23 @@
 import { createContext, useState, useContext, useEffect } from 'react'
+import { API_BASE_URL } from '../config/apiBaseUrl'
 
 const AuthContext = createContext(null)
 
-// Use the same base URL pattern as api.js
-const API_BASE_URL = import.meta.env.VITE_API_URL || ''
+const parseErrorResponse = async (response, fallbackMessage) => {
+  const contentType = response.headers.get('content-type') || ''
+
+  if (contentType.includes('application/json')) {
+    const payload = await response.json()
+    return payload?.detail || payload?.message || fallbackMessage
+  }
+
+  const text = await response.text()
+  if (text.includes('No such app')) {
+    return 'API target is unavailable. Check frontend API proxy/backend URL.'
+  }
+
+  return `${fallbackMessage} (${response.status})`
+}
 
 export const useAuth = () => {
   const context = useContext(AuthContext)
@@ -49,14 +63,17 @@ export function AuthProvider({ children }) {
         const data = await response.json()
         setUser(data)
         localStorage.setItem('user_data', JSON.stringify(data))
+        return data
       } else {
         // Session expired or invalid
         setUser(null)
         localStorage.removeItem('user_data')
+        return null
       }
     } catch (error) {
       console.error('Auth check failed:', error)
       // On network error, keep cached user (don't kick them out)
+      return user
     } finally {
       setLoading(false)
     }
@@ -75,16 +92,20 @@ export function AuthProvider({ children }) {
     })
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.detail || 'Login failed')
+      const message = await parseErrorResponse(response, 'Login failed')
+      throw new Error(message)
     }
 
     const data = await response.json()
-    // Save to storage and state immediately
-    localStorage.setItem('user_data', JSON.stringify(data))
     
-    // Validate session in background
-    await validateSession()
+    // Validate cookie-based session immediately; avoids silent login loops.
+    const validatedUser = await validateSession()
+    if (!validatedUser) {
+      throw new Error(
+        'Login succeeded but the session cookie was not persisted. Check API domain/cookie configuration.'
+      )
+    }
+
     return data
   }
 
