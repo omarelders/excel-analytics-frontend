@@ -20,8 +20,6 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        {/* Global grain texture overlay */}
-        <div className="noise-overlay" />
         <div className="app">
           <OfflineIndicator />
           

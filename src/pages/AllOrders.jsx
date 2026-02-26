@@ -1,7 +1,10 @@
 import { useState, useEffect, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate, useLocation } from 'react-router-dom'
 import api from '../api'
-import { ChevronLeft, ChevronRight, ChevronFirst, ChevronLast, Package, DollarSign, Filter, X, Loader2, AlertCircle, Check, Calendar, ChevronDown, Trash2, Pencil, Edit3, BarChart3, Search } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronFirst, ChevronLast, Package, DollarSign, Filter, X, Loader2, AlertCircle, Check, Calendar, ChevronDown, Trash2, Pencil, Edit3, BarChart3, Search, Download } from 'lucide-react'
+import ExportModal from '../components/ExportModal'
+import * as XLSX from 'xlsx'
 import { getStatusColor } from '../constants/statuses'
 import TableSkeleton from '../components/TableSkeleton'
 import SearchAutocomplete from '../components/SearchAutocomplete'
@@ -9,6 +12,31 @@ import './AllOrders.css'
 
 const PAGE_SIZE = 100
 const STATS_PAGE_SIZE = 500
+
+const EXPORT_COLUMNS = [
+  { key: 'الكود', label: 'الكود' },
+  { key: 'التاريخ', label: 'التاريخ' },
+  { key: 'العميل', label: 'العميل' },
+  { key: 'الفرع', label: 'الفرع' },
+  { key: 'الوصف', label: 'الوصف' },
+  { key: 'الحالة', label: 'الحالة' },
+  { key: 'اسم الراسل', label: 'اسم الراسل' },
+  { key: 'مدينة الراسل', label: 'مدينة الراسل' },
+  { key: 'المستلم', label: 'المستلم' },
+  { key: 'مدينة المستلم', label: 'مدينة المستلم' },
+  { key: 'منطقة المستلم', label: 'منطقة المستلم' },
+  { key: 'عنوان المستلم', label: 'عنوان المستلم' },
+  { key: 'هاتف المستلم', label: 'هاتف المستلم' },
+  { key: 'موبايل المستلم', label: 'موبايل المستلم' },
+  { key: 'قيمة الطرد', label: 'قيمة الطرد' },
+  { key: 'الرسوم', label: 'الرسوم' },
+  { key: 'صافي سعر الطرد', label: 'صافي سعر الطرد' },
+  { key: 'القيمة الإجمالية', label: 'القيمة الإجمالية' },
+  { key: 'نوع السعر', label: 'نوع السعر' },
+  { key: 'الوزن', label: 'الوزن' },
+  { key: 'عدد القطع', label: 'عدد القطع' },
+  { key: 'ملاحظات', label: 'ملاحظات' }
+]
 
 function AllOrdersPage() {
   const navigate = useNavigate()
@@ -58,6 +86,10 @@ function AllOrdersPage() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [editData, setEditData] = useState({ code: '', amount: '', description: '' })
+  
+  // Export modal state
+  const [showExportModal, setShowExportModal] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
   
 
   const fetchShipments = async (page = 0, search = '', dateFromVal = '', dateToVal = '') => {
@@ -349,6 +381,97 @@ function AllOrdersPage() {
     setShowEditModal(false)
   }
 
+  // Export handlers
+  const handleExport = async (selectedColumns, exportLimit = null) => {
+    setIsExporting(true)
+    setShowExportModal(false)
+    setStatusMessage({ type: 'info', text: 'جاري تجهيز ملف إكسيل...' })
+    
+    try {
+      const baseParams = {}
+      if (dateFrom) baseParams.date_from = dateFrom
+      if (dateTo) baseParams.date_to = dateTo
+      if (searchDraft) baseParams.search = searchDraft
+
+      let offset = 0
+      let totalOrders = 0
+      let batchesFetched = 0
+      const maxBatches = 500
+      const allShipments = []
+
+      while (batchesFetched < maxBatches) {
+        const response = await api.get('/shipments', {
+          params: { ...baseParams, limit: STATS_PAGE_SIZE, offset }
+        })
+        const pageData = response.data.data || []
+        if (batchesFetched === 0) {
+           totalOrders = response.data.total || 0
+        }
+        allShipments.push(...pageData)
+        if (pageData.length === 0 || allShipments.length >= totalOrders) {
+           break
+        }
+        offset += pageData.length
+        batchesFetched += 1
+      }
+
+      // Filter local
+      let recordsToExport = allShipments.filter(s => {
+        if (priceTypeFilter && s['نوع السعر'] !== priceTypeFilter) return false
+        const amount = s['قيمة الطرد'] || 0
+        if (amountMin && amount < parseFloat(amountMin)) return false
+        if (amountMax && amount > parseFloat(amountMax)) return false
+        return true
+      })
+
+      // Apply the export limit if provided
+      if (exportLimit && exportLimit > 0) {
+        recordsToExport = recordsToExport.slice(0, exportLimit)
+      }
+
+      if (recordsToExport.length === 0) {
+        setStatusMessage({ type: 'error', text: 'لا توجد بيانات للتصدير' })
+        setIsExporting(false)
+        return
+      }
+
+      // Map to selected columns (guarantee original fixed order for the final export)
+      const exportData = recordsToExport.map(row => {
+        const exportedRow = {}
+        EXPORT_COLUMNS.forEach(col => {
+          if (selectedColumns.includes(col.key)) {
+             exportedRow[col.key] = row[col.key]
+          }
+        })
+        return exportedRow
+      })
+
+      const worksheet = XLSX.utils.json_to_sheet(exportData)
+      
+      // Auto-size columns loosely
+      const colWidths = selectedColumns.map(key => ({ wch: Math.max(key.length, 15) }))
+      worksheet['!cols'] = colWidths
+      // RTL
+      if (!worksheet['!views']) worksheet['!views'] = []
+      worksheet['!views'][0] = { rightToLeft: true }
+
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, "الطلبات")
+
+      const dateStr = new Date().toISOString().split('T')[0]
+      XLSX.writeFile(workbook, `shipments_export_${dateStr}.xlsx`)
+      
+      setStatusMessage({ type: 'success', text: 'تم تصدير الملف بنجاح' })
+      setTimeout(() => setStatusMessage(null), 3000)
+    } catch (err) {
+      console.error('Export failed:', err)
+      setStatusMessage({ type: 'error', text: 'فشل تصدير الملف' })
+      setTimeout(() => setStatusMessage(null), 3000)
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   // Apply client-side filters
   const filteredShipments = useMemo(() => {
     return shipments.filter(s => {
@@ -375,11 +498,12 @@ function AllOrdersPage() {
   return (
     <div className="all-orders-page">
       {/* Status Message Toast */}
-      {statusMessage && (
+      {statusMessage && createPortal(
         <div className={`status-toast ${statusMessage.type}`}>
           {statusMessage.type === 'success' ? <Check size={16} /> : <AlertCircle size={16} />}
           <span>{statusMessage.text}</span>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Stats Popup */}
@@ -499,6 +623,16 @@ function AllOrdersPage() {
         >
           <Pencil size={16} />
           <span className="edit-mode-label">{isEditMode ? 'Editing' : 'Edit'}</span>
+        </button>
+
+        <button 
+          className="export-data-btn"
+          onClick={() => setShowExportModal(true)}
+          disabled={isExporting}
+          title="تصدير إلى إكسيل"
+        >
+          {isExporting ? <Loader2 size={16} className="spin" /> : <Download size={16} />}
+          <span>Excel</span>
         </button>
       </div>
 
@@ -816,6 +950,14 @@ function AllOrdersPage() {
           </div>
         </div>
       )}
+
+      {/* Export Modal */}
+      <ExportModal 
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        onExport={handleExport}
+        columns={EXPORT_COLUMNS}
+      />
     </div>
   )
 }

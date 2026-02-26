@@ -423,6 +423,33 @@
   background: hsl(var(--primary) / 0.9);
 }
 
+/* Export Button */
+.export-data-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 40px;
+  padding: 0 1rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.export-data-btn:hover:not(:disabled) {
+  background: hsl(var(--accent));
+}
+
+.export-data-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 /* Filter Panel */
 .filter-panel {
   display: flex;
@@ -808,43 +835,7 @@
   color: hsl(var(--muted-foreground));
 }
 
-/* Status Toast */
-.status-toast {
-  position: fixed;
-  top: 1rem;
-  right: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  z-index: 1000;
-  animation: slideIn 0.3s ease-out;
-}
-
-.status-toast.success {
-  background: hsl(142.1 76.2% 36.3% / 0.15);
-  color: hsl(142.1 76.2% 46.3%);
-  border: 1px solid hsl(142.1 76.2% 36.3% / 0.3);
-}
-
-.status-toast.error {
-  background: hsl(0 62.8% 30.6% / 0.15);
-  color: hsl(0 62.8% 55%);
-  border: 1px solid hsl(0 62.8% 30.6% / 0.3);
-}
-
-@keyframes slideIn {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
+/* Status Toast handled globally in App.css */
 
 /* Table Footer */
 .table-footer {
@@ -1016,6 +1007,16 @@
     display: inline;
     font-size: 0.875rem;
     font-weight: 500;
+  }
+
+  .controls-bar .export-data-btn span {
+    display: none;
+  }
+  
+  .controls-bar .export-data-btn {
+    width: 40px;
+    padding: 0;
+    flex: 0 0 40px;
   }
 
   .search-form {

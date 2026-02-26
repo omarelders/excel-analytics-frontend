@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import api from '../api'
 import { Trash2, RotateCcw, AlertCircle, Check, Loader2, ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, Package } from 'lucide-react'
 import TableSkeleton from '../components/TableSkeleton'
@@ -73,11 +74,12 @@ function RecycleBinPage() {
         </span>
       </div>
 
-      {statusMessage && (
+      {statusMessage && createPortal(
         <div className={`status-toast ${statusMessage.type}`}>
           {statusMessage.type === 'success' ? <Check size={16} /> : <AlertCircle size={16} />}
           <span>{statusMessage.text}</span>
-        </div>
+        </div>,
+        document.body
       )}
 
       <div className="table-card">

@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import api from '../api'
 import { Settings, Trash2, RotateCcw, AlertCircle, Check, Loader2, ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, Database, Bell, Send } from 'lucide-react'
 import TableSkeleton from '../components/TableSkeleton'
@@ -133,11 +134,12 @@ function SettingsPage() {
         </button>
       </div>
 
-      {statusMessage && (
-        <div className={`status-toast ${statusMessage.type}`} style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 1000 }}>
+      {statusMessage && createPortal(
+        <div className={`status-toast ${statusMessage.type}`}>
             {statusMessage.type === 'success' ? <Check size={16} /> : <AlertCircle size={16} />}
             <span>{statusMessage.text}</span>
-        </div>
+        </div>,
+        document.body
       )}
 
       {activeTab === 'notifications' && (
