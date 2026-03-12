@@ -165,10 +165,11 @@ function AllOrdersPage() {
         console.warn('Stats fetch reached safety batch limit; data may be incomplete.')
       }
 
-      // Exclude returned orders from total price
+      // Exclude returned orders from total price (مرتجع and ارتجاع للراسل)
+      const EXCLUDED_STATUSES = ['مرتجع', 'ارتجاع للراسل']
       const total = allShipments
-        .filter(s => s['\u0627\u0644\u062d\u0627\u0644\u0629'] !== '\u0645\u0631\u062a\u062c\u0639')
-        .reduce((sum, s) => sum + (s['\u0642\u064a\u0645\u0629 \u0627\u0644\u0637\u0631\u062f'] || 0), 0)
+        .filter(s => !EXCLUDED_STATUSES.includes(s['الحالة']))
+        .reduce((sum, s) => sum + (s['قيمة الطرد'] || 0), 0)
 
       setStats({ totalOrders, totalPrice: total })
 
@@ -211,10 +212,13 @@ function AllOrdersPage() {
         s['الكود'] === shipmentCode ? { ...s, 'الحالة': newStatus } : s
       ))
       
-      // Update stats: if changing TO "مرتجع", deduct value; if changing FROM "مرتجع", add value back
-      if (newStatus === 'مرتجع' && previousStatus !== 'مرتجع') {
+      // Update stats: if changing TO a returned status, deduct value; if changing FROM a returned status, add value back
+      const RETURNED_STATUSES = ['مرتجع', 'ارتجاع للراسل']
+      const isNewReturned = RETURNED_STATUSES.includes(newStatus)
+      const wasPrevReturned = RETURNED_STATUSES.includes(previousStatus)
+      if (isNewReturned && !wasPrevReturned) {
         setStats(prev => ({ ...prev, totalPrice: prev.totalPrice - (orderValue || 0) }))
-      } else if (previousStatus === 'مرتجع' && newStatus !== 'مرتجع') {
+      } else if (wasPrevReturned && !isNewReturned) {
         setStats(prev => ({ ...prev, totalPrice: prev.totalPrice + (orderValue || 0) }))
       }
       
