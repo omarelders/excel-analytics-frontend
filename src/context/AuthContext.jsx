@@ -1,5 +1,6 @@
 import { createContext, useState, useContext, useEffect } from 'react'
 import { API_BASE_URL } from '../config/apiBaseUrl'
+import { clearOfflineStorage } from '../utils/offlineStorage'
 
 const AuthContext = createContext(null)
 
@@ -119,7 +120,38 @@ export function AuthProvider({ children }) {
       console.error('Logout error:', error)
     } finally {
       setUser(null)
+      // Erase sensitive user and offline data
       localStorage.removeItem('user_data')
+      localStorage.removeItem('authToken')
+      localStorage.removeItem('contentCalendarData')
+      localStorage.removeItem('ideasNotesData')
+      try {
+        sessionStorage.clear()
+      } catch (e) {
+        console.error('SessionStorage clear error:', e)
+      }
+
+      // Clear Cache Storage so customer and financial data are never retained
+      if (typeof window !== 'undefined' && 'caches' in window && window.caches) {
+        try {
+          await window.caches.delete('api-cache')
+          const cacheKeys = await window.caches.keys()
+          await Promise.all(
+            cacheKeys
+              .filter(key => key.includes('api') || key.includes('data'))
+              .map(key => window.caches.delete(key))
+          )
+        } catch (err) {
+          console.error('Error clearing api caches:', err)
+        }
+      }
+
+      // Clear offline IndexedDB data
+      try {
+        await clearOfflineStorage()
+      } catch (err) {
+        console.error('Error clearing offline storage:', err)
+      }
     }
   }
 

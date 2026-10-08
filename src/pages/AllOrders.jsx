@@ -11,7 +11,7 @@ import SearchAutocomplete from '../components/SearchAutocomplete'
 import './AllOrders.css'
 
 const PAGE_SIZE = 100
-const STATS_PAGE_SIZE = 500
+const STATS_PAGE_SIZE = 100
 
 const EXPORT_COLUMNS = [
   { key: 'الكود', label: 'الكود' },

@@ -10,33 +10,50 @@ cleanupOutdatedCaches();
 // Precache resources from manifest
 precacheAndRoute(self.__WB_MANIFEST);
 
-const API_PATH_PREFIXES = [
+// Routes strictly excluded from Cache Storage to prevent PII and sensitive customer/financial leaks
+const EXCLUDED_CACHE_ROUTES = [
   '/api/',
   '/shipments',
   '/payments',
+  '/notes',
   '/upload',
+];
+
+const isExcludedRoute = (pathname) => {
+  const normalized = (pathname || '').toLowerCase();
+  return EXCLUDED_CACHE_ROUTES.some((prefix) => {
+    const clean = prefix.toLowerCase().replace(/\/+$/, '');
+    return normalized === clean || normalized.startsWith(`${clean}/`);
+  });
+};
+
+// Safe endpoints that may be cached offline
+const SAFE_API_PREFIXES = [
   '/statuses',
   '/notifications',
   '/health',
-]
+];
 
-const isApiPath = (pathname) =>
-  API_PATH_PREFIXES.some((prefix) => {
-    if (prefix.endsWith('/')) {
-      return pathname.startsWith(prefix)
-    }
-    return pathname === prefix || pathname.startsWith(`${prefix}/`)
-  })
+const isSafeApiPath = (pathname) => {
+  const normalized = (pathname || '').toLowerCase();
+  return SAFE_API_PREFIXES.some((prefix) => {
+    const clean = prefix.toLowerCase().replace(/\/+$/, '');
+    return normalized === clean || normalized.startsWith(`${clean}/`);
+  });
+};
 
-// API Caching - NetworkFirst
-// Try network first, fall back to cache if offline
+// API Caching - NetworkFirst for safe, non-sensitive endpoints only
+// /api/, /shipments, /payments, and /notes are explicitly excluded to prevent PII and financial data leaks
 registerRoute(
-  ({ url }) => url.origin === self.location.origin && isApiPath(url.pathname),
+  ({ url }) =>
+    url.origin === self.location.origin &&
+    isSafeApiPath(url.pathname) &&
+    !isExcludedRoute(url.pathname),
   new NetworkFirst({
     cacheName: 'api-cache',
     plugins: [
       new CacheableResponsePlugin({
-        statuses: [0, 200],
+        statuses: [200],
       }),
       new ExpirationPlugin({
         maxEntries: 100,
@@ -45,6 +62,13 @@ registerRoute(
     ],
   })
 );
+
+// Purge any legacy api-cache that may contain previously stored PII on activate
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.delete('api-cache')
+  );
+});
 
 // Image Caching - CacheFirst
 // Serve from cache, update in background? No, CacheFirst means cache wins unless missing.
