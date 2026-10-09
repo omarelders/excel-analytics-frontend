@@ -12,8 +12,8 @@
  * `'self'`: every reference the app ships is root-relative, and a genuinely absolute
  * URL is the only case that needs a host-source of its own.
  *
- * Run `npm run build` first. Checks that read `dist/` skip and say why rather than
- * pass silently without it.
+ * Run `npm run build` first: the checks that read `dist/` require the build to have
+ * run, and **fail** (not skip) without it - a gate that cannot fail is not a gate.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -606,6 +606,70 @@ test('the lockdown directives are present and restrictive', () => {
   assert.deepStrictEqual(csp().get('frame-ancestors'), ["'none'"]);
 });
 
+/**
+ * The whole policy, pinned.
+ *
+ * Same derivation as the compatibility check below, in the other direction: a token the
+ * app does not need is a token that widens the policy. The minimality check cannot
+ * catch this on its own - a directive that admits at least one collected reference (or
+ * that admits none, like font-src) passes no matter how wide it is - so every directive
+ * is pinned here to exactly what this app loads.
+ *
+ * - img-src: the four same-origin icons in index.html / dist/index.html. The built CSS
+ *   contains no url() at all, and the app fetches no data: or cross-origin image.
+ * - manifest-src: the one same-origin /manifest.webmanifest the build emits.
+ * - media-src: only `data:audio/webm;base64,` (WaveformPlayer.jsx:66, Ideas.jsx:265) and
+ *   the `blob:` object URL useAudioRecorder.js:80 hands to Ideas.jsx. There is no
+ *   same-origin media asset, so 'self' is deliberately absent.
+ * - font-src: no font file ships in this repository, so the only host is the one the
+ *   stylesheet App.css imports serves its @font-face files from - see the exception the
+ *   minimality test documents.
+ * - style-src: 'unsafe-inline' for React style attributes and OfflineIndicator's
+ *   <style> element, which cannot carry a nonce; the host is the stylesheet App.css
+ *   imports. script-src gets none of it.
+ */
+test('every directive stays exactly as wide as this app needs it', () => {
+  const expected = {
+    'default-src': ["'self'"],
+    'base-uri': ["'self'"],
+    'connect-src': ["'self'"],
+    'font-src': ["'self'", 'https://fonts.gstatic.com'],
+    'form-action': ["'self'"],
+    'frame-ancestors': ["'none'"],
+    'frame-src': ["'none'"],
+    'img-src': ["'self'"],
+    'manifest-src': ["'self'"],
+    'media-src': ['data:', 'blob:'],
+    'object-src': ["'none'"],
+    'script-src': ["'self'"],
+    'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+    'worker-src': ["'self'"],
+    'upgrade-insecure-requests': [],
+  };
+
+  assert.deepStrictEqual(
+    [...csp().keys()].sort(),
+    Object.keys(expected).sort(),
+    'the directive set changed - widen it deliberately, not by accident',
+  );
+
+  for (const [directive, tokens] of Object.entries(expected)) {
+    assert.deepStrictEqual(
+      [...(csp().get(directive) ?? [])].sort(),
+      [...tokens].sort(),
+      `${directive} must stay exactly what this app loads`,
+    );
+  }
+});
+
+test('upgrade-insecure-requests is still required', () => {
+  assert.ok(
+    csp().has('upgrade-insecure-requests'),
+    'upgrade-insecure-requests must be kept: the app is HTTPS-only, and it turns any http:// reference into a blocked request instead of a silent mixed-content load',
+  );
+  assert.deepStrictEqual(csp().get('upgrade-insecure-requests'), []);
+});
+
 // ---------------------------------------------------------------------------
 // Content-Security-Policy - mechanical compatibility
 // ---------------------------------------------------------------------------
@@ -628,11 +692,11 @@ test('the compatibility check covers the asset classes the source contributes', 
   }
 });
 
-test('the built output contributes its own references', (t) => {
-  if (!exists('dist/index.html')) {
-    t.skip('dist/ is missing - run npm run build so the built HTML, CSS and worker can be checked');
-    return;
-  }
+test('the built output contributes its own references', () => {
+  assert.ok(
+    exists('dist/index.html'),
+    'dist/index.html is missing - `npm test` checks what the build emits, so run `npm run build` first. Without the build these checks cannot see a single emitted asset.',
+  );
 
   const built = REFERENCES.filter(({ where }) => where.startsWith('dist/'));
 
@@ -654,16 +718,16 @@ test('the built output contributes its own references', (t) => {
   );
 });
 
-test('the emitted service worker is admitted by worker-src', (t) => {
-  if (!exists(`dist/${WORKER_FILENAME}`)) {
-    t.skip(`dist/${WORKER_FILENAME} is missing - run npm run build so the emitted worker can be checked`);
-    return;
-  }
+test('the emitted service worker is admitted by worker-src', () => {
+  assert.ok(
+    exists(`dist/${WORKER_FILENAME}`),
+    `dist/${WORKER_FILENAME} is missing - run \`npm run build\` first. An unbuilt tree gives no signal about the worker the build actually emits, so this is a failure rather than a skip.`,
+  );
 
   const registeredFrom = registersWorkerFromBuiltBundle();
   assert.ok(
     registeredFrom,
-    `no built asset registers "/${WORKER_FILENAME}", so the worker would never install`,
+    `no built asset registers "/${WORKER_FILENAME}" (or dist/assets is missing - run \`npm run build\`), so the worker would never install`,
   );
 
   const worker = toUrl(`/${WORKER_FILENAME}`);
