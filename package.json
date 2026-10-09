@@ -8,6 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "test": "node --test \"test/**/*.test.{mjs,js}\"",
     "test:security": "node verify_security.mjs"
   },
   "dependencies": {
