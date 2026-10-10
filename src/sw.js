@@ -80,7 +80,16 @@ registerRoute(
  */
 const CACHE_SCHEMA_VERSION = 1;
 
-/** Holds one synthetic marker string per schema version. No responses. */
+/**
+ * Holds one synthetic marker string per schema version. No responses.
+ *
+ * Cache Storage is best-effort storage, so the marker can be evicted while
+ * `api-cache` survives; the next activation then re-runs the purge. The cost is
+ * one bounded refill, because the allowlist above means `api-cache` can never
+ * hold PII in the first place. A marker that survives that needs IndexedDB
+ * rather than Cache Storage, so the re-run is accepted here and left to the
+ * logout-purge work to replace.
+ */
 const MIGRATION_CACHE_NAME = 'sw-migrations';
 
 /** The runtime cache an earlier build may have filled with PII. */
@@ -94,7 +103,13 @@ const runPendingMigrations = async () => {
     return false;
   }
 
-  // Mark first, then purge, so a failed delete retries rather than being lost.
+  // The marker is written before the purge, not after it, and the reason is
+  // idempotence: once the marker is on disk the guard above short-circuits, so
+  // the wholesale delete can run at most once per schema version even if the
+  // worker is killed between the two awaits. The price is the mirror image - a
+  // delete that fails, or is interrupted before it lands, is never retried.
+  // That is the safe direction for a purge whose replay would throw away data
+  // the runtime cache has since refilled.
   await markers.put(migrationKey, new Response('done'));
   return self.caches.delete(LEGACY_API_CACHE);
 };
@@ -105,7 +120,11 @@ self.addEventListener('activate', (event) => {
 
 // Image Caching - CacheFirst, same-origin and never opaque.
 // An opaque response has status 0 (a cross-origin no-cors reply), so
-// statuses [200] is what keeps them out even if the origin check were relaxed.
+// statuses [200] is standing defence in depth: the layer that actually
+// refuses it is workbox-strategies' StrategyHandler._ensureResponseSafeToCache,
+// which drops every non-200 response when no plugin supplies a
+// cacheWillUpdate - CacheFirst has no default one - so the origin check is
+// what keeps this route from ever being handed an opaque response at all.
 registerRoute(
   ({ request, sameOrigin }) =>
     sameOrigin &&

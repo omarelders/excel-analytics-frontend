@@ -52,6 +52,19 @@ const SENSITIVE_PATHS = [
   '/upload',
 ];
 
+/**
+ * The migration marker key, read out of `src/sw.js` rather than written here, so
+ * bumping `CACHE_SCHEMA_VERSION` moves this test with it instead of failing it
+ * for a version that is no longer the one being asserted. `dist/sw.js` is built
+ * from the same source, which is what the boot of `dist/sw.js` then proves.
+ */
+const markerUrl = () => {
+  const source = fs.readFileSync(path.join(ROOT, 'src/sw.js'), 'utf8');
+  const version = source.match(/CACHE_SCHEMA_VERSION\s*=\s*(\d+)\s*;/)?.[1];
+  assert.ok(version, 'could not read CACHE_SCHEMA_VERSION out of src/sw.js');
+  return `${ORIGIN}/schema-v${version}`;
+};
+
 const IMAGE_LIMIT = 50;
 const STATIC_LIMIT = 50;
 
@@ -362,7 +375,7 @@ for (const { entry, label } of WORKERS) {
 
     assert.deepStrictEqual(
       entriesIn(report, MIGRATION_CACHE).map((entry) => entry.url),
-      [`${ORIGIN}/schema-v1`],
+      [markerUrl()],
       'the marker for the current schema version must be stored exactly once',
     );
     assert.deepStrictEqual(
