@@ -4,54 +4,55 @@ import { CacheFirst, NetworkFirst, StaleWhileRevalidate } from 'workbox-strategi
 import { ExpirationPlugin } from 'workbox-expiration';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 
-// Cleanup old caches
+// Cleanup old precaches
 cleanupOutdatedCaches();
 
 // Precache resources from manifest
 precacheAndRoute(self.__WB_MANIFEST);
 
-// Routes strictly excluded from Cache Storage to prevent PII and sensitive customer/financial leaks
-const EXCLUDED_CACHE_ROUTES = [
-  '/api/',
-  '/shipments',
-  '/payments',
-  '/notes',
-  '/upload',
-];
+// ---------------------------------------------------------------------------
+// What this worker is allowed to cache
+//
+// It is an allowlist, not a blocklist: a route matches only the requests
+// described below, and every other request is left to the network untouched.
+// There is deliberately no exclusion list to keep in sync, so there is no
+// "protection" here that can silently stop protecting anything - the endpoints
+// that carry PII (/api/, /shipments, /payments, /notes, /upload, and any POST or
+// other non-GET) are excluded by not being on this list, by construction.
+// ---------------------------------------------------------------------------
 
-const isExcludedRoute = (pathname) => {
-  const normalized = (pathname || '').toLowerCase();
-  return EXCLUDED_CACHE_ROUTES.some((prefix) => {
-    const clean = prefix.toLowerCase().replace(/\/+$/, '');
-    return normalized === clean || normalized.startsWith(`${clean}/`);
-  });
-};
-
-// Safe endpoints that may be cached offline
-const SAFE_API_PREFIXES = [
+// API paths that may be served from Cache Storage when the device is offline.
+// Anything not listed here is never written to a cache by this worker.
+const CACHEABLE_API_PREFIXES = [
   '/statuses',
   '/notifications',
   '/health',
 ];
 
-const isSafeApiPath = (pathname) => {
+const isCacheableApiPath = (pathname) => {
   const normalized = (pathname || '').toLowerCase();
-  return SAFE_API_PREFIXES.some((prefix) => {
+  return CACHEABLE_API_PREFIXES.some((prefix) => {
     const clean = prefix.toLowerCase().replace(/\/+$/, '');
     return normalized === clean || normalized.startsWith(`${clean}/`);
   });
 };
 
-// API Caching - NetworkFirst for safe, non-sensitive endpoints only
-// /api/, /shipments, /payments, and /notes are explicitly excluded to prevent PII and financial data leaks
+// `sameOrigin` is workbox-routing's own `url.origin === self.location.origin`
+// comparison, handed to every match callback. Keeping the runtime routes
+// same-origin is not only about not storing somebody else's responses: the CSP
+// this app ships has `connect-src 'self'`, and that directive governs the
+// worker's own fetch() calls too - a route that matched a cross-origin request
+// could never satisfy it, so the request would fail instead of being served.
+
+// API Caching - NetworkFirst, for the allowlisted paths only
 registerRoute(
-  ({ url }) =>
-    url.origin === self.location.origin &&
-    isSafeApiPath(url.pathname) &&
-    !isExcludedRoute(url.pathname),
+  ({ url, sameOrigin }) =>
+    sameOrigin &&
+    isCacheableApiPath(url.pathname),
   new NetworkFirst({
     cacheName: 'api-cache',
     plugins: [
+      // statuses [200] keeps opaque and error responses out of the cache
       new CacheableResponsePlugin({
         statuses: [200],
       }),
@@ -63,20 +64,58 @@ registerRoute(
   })
 );
 
-// Purge any legacy api-cache that may contain previously stored PII on activate
+// ---------------------------------------------------------------------------
+// Cache Storage migrations
+// ---------------------------------------------------------------------------
+
+/**
+ * Version of the cache layout this worker writes.
+ *
+ * `runPendingMigrations` below is keyed on it: introducing a version marks it as
+ * done, and a later activation that finds the marker for the current version does
+ * nothing. Bump the constant and the next activation re-runs the migration
+ * exactly once. A normal re-activation must never wipe the runtime caches -
+ * deleting 'api-cache' on every activate (as this worker used to) threw away
+ * exactly the offline data the allowlist above exists to keep.
+ */
+const CACHE_SCHEMA_VERSION = 1;
+
+/** Holds one synthetic marker string per schema version. No responses. */
+const MIGRATION_CACHE_NAME = 'sw-migrations';
+
+/** The runtime cache an earlier build may have filled with PII. */
+const LEGACY_API_CACHE = 'api-cache';
+
+const migrationKey = `/schema-v${CACHE_SCHEMA_VERSION}`;
+
+const runPendingMigrations = async () => {
+  const markers = await self.caches.open(MIGRATION_CACHE_NAME);
+  if (await markers.match(migrationKey)) {
+    return false;
+  }
+
+  // Mark first, then purge, so a failed delete retries rather than being lost.
+  await markers.put(migrationKey, new Response('done'));
+  return self.caches.delete(LEGACY_API_CACHE);
+};
+
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.delete('api-cache')
-  );
+  event.waitUntil(runPendingMigrations());
 });
 
-// Image Caching - CacheFirst
-// Serve from cache, update in background? No, CacheFirst means cache wins unless missing.
+// Image Caching - CacheFirst, same-origin and never opaque.
+// An opaque response has status 0 (a cross-origin no-cors reply), so
+// statuses [200] is what keeps them out even if the origin check were relaxed.
 registerRoute(
-  ({ request }) => request.destination === 'image',
+  ({ request, sameOrigin }) =>
+    sameOrigin &&
+    request.destination === 'image',
   new CacheFirst({
     cacheName: 'image-cache',
     plugins: [
+      new CacheableResponsePlugin({
+        statuses: [200],
+      }),
       new ExpirationPlugin({
         maxEntries: 50,
         maxAgeSeconds: 30 * 24 * 60 * 60, // 30 Days
@@ -85,9 +124,14 @@ registerRoute(
   })
 );
 
-// Font Caching - CacheFirst
+// Font Caching - CacheFirst, same-origin. The stylesheet App.css imports serves
+// its @font-face files from fonts.gstatic.com, which `font-src` admits; letting
+// those through to the network is the only way they can load, because the
+// worker's own fetch would be governed by `connect-src 'self'` instead.
 registerRoute(
-  ({ request }) => request.destination === 'font',
+  ({ request, sameOrigin }) =>
+    sameOrigin &&
+    request.destination === 'font',
   new CacheFirst({
     cacheName: 'font-cache',
     plugins: [
@@ -99,11 +143,22 @@ registerRoute(
   })
 );
 
-// Scripts and Styles - StaleWhileRevalidate
+// Scripts and Styles - StaleWhileRevalidate, same-origin and bounded
 registerRoute(
-  ({ request }) => request.destination === 'script' || request.destination === 'style',
+  ({ request, sameOrigin }) =>
+    sameOrigin &&
+    (request.destination === 'script' || request.destination === 'style'),
   new StaleWhileRevalidate({
     cacheName: 'static-resources',
+    plugins: [
+      new CacheableResponsePlugin({
+        statuses: [200],
+      }),
+      new ExpirationPlugin({
+        maxEntries: 50,
+        maxAgeSeconds: 30 * 24 * 60 * 60, // 30 Days
+      }),
+    ],
   })
 );
 
