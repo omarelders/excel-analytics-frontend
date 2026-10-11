@@ -59,6 +59,7 @@ const MIRROR = path.join(ROOT, 'node_modules', '.cache', 'logout-purge-mirror');
 /** The modules on the logout path, in dependency order. */
 const MODULES = [
   'src/utils/cachePurge.js',
+  'src/utils/sessionIdentity.js',
   'src/utils/offlineStorage.js',
   'src/utils/logoutConfirmation.js',
   'src/config/apiBaseUrl.js',

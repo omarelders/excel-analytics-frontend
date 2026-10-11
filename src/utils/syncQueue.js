@@ -9,10 +9,15 @@
  * can never succeed must stop being retried forever and be shown to the user instead.
  *
  * `addToSyncQueue()` still runs before a request is sent, and `clearOfflineStorage()`
- * still wipes the queue on logout: the queue is a device-local copy of a mutation, and
- * a replay runs under the session that queued it.
+ * still wipes the queue on logout: the queue is a device-local copy of a mutation,
+ * and a replay runs under the session that is current when it goes out. Each entry is
+ * stamped with the session that queued it (`src/utils/sessionIdentity.js`), and a
+ * replay that would carry a different session's cookie is refused here rather than
+ * sent - so a logout is not the only thing standing between one user's queued body
+ * and another user's session.
  */
 import api from '../api';
+import { isQueuedUnderCurrentSession } from './sessionIdentity';
 import {
   MAX_SYNC_ATTEMPTS,
   RETRY_BACKOFF_BASE_MS,
@@ -100,10 +105,16 @@ const sendQueuedRequest = (entry) =>
  * time; one that has now had MAX_SYNC_ATTEMPTS is marked spent and reported back rather
  * than attempted again. A device that is offline is not an attempt: nothing was sent, so
  * burning an attempt on it would exhaust a queue entry the moment it is created.
+ *
+ * An entry stamped with another session's identity is dropped rather than sent: a
+ * replay carries the current session's cookie, so it would deliver that user's
+ * writes as whoever is signed in now.
  */
-export const flushSyncQueue = async ({ online = isOnline, now = Date.now, send = sendQueuedRequest } = {}) => {
+export const flushSyncQueue = (options = {}) => exclusively(() => flushOnce(options));
+
+async function flushOnce({ online = isOnline, now = Date.now, send = sendQueuedRequest } = {}) {
   if (!online()) {
-    return { sent: 0, deferred: 0, failures: [], skipped: 'offline' };
+    return { sent: 0, deferred: 0, dropped: 0, failures: [], skipped: 'offline' };
   }
 
   publish({ isSyncing: true });
@@ -111,10 +122,23 @@ export const flushSyncQueue = async ({ online = isOnline, now = Date.now, send =
   const queue = await getSyncQueue();
   const sent = [];
   const failures = [];
+  const dropped = [];
   let deferred = 0;
 
   try {
     for (const entry of queue) {
+      // Before anything else: an entry stamped with another session's identity is
+      // not this session's to send. The replay would carry the current cookie, so
+      // it would post the previous user's body as whoever is signed in now - the
+      // cross-user replay the queue exists to prevent. Dropped, not left looking
+      // pending: nothing on this device will ever send it again, and the indicator
+      // must not advertise a sync that cannot happen.
+      if (!isQueuedUnderCurrentSession(entry)) {
+        await removeSyncQueueItem(entry.id);
+        dropped.push(entry);
+        continue;
+      }
+
       const decision = retryDecision(entry, now());
 
       if (decision === 'exhausted') {
@@ -152,16 +176,44 @@ export const flushSyncQueue = async ({ online = isOnline, now = Date.now, send =
   }
 
   await refreshSyncState();
-  return { sent: sent.length, deferred, failures, skipped: null };
+  return { sent: sent.length, deferred, dropped: dropped.length, failures, skipped: null };
+};
+
+/**
+ * One pass at a time.
+ *
+ * `isSyncing` is published but the queue is reached from two places that can both
+ * fire: the reconnect handler, and the indicator's Sync button. Two passes read the
+ * same queue, so without this guard both send the same entry, each `removeSyncQueueItem`
+ * lands on a row the other pass is holding, and a financial or shipment mutation goes
+ * out twice. The first caller's promise is handed to anybody who arrives while it is
+ * still running, so a second caller observes the same pass instead of starting its own.
+ */
+let passInFlight = null;
+
+const exclusively = async (start) => {
+  if (passInFlight) {
+    return passInFlight;
+  }
+
+  const pass = (async () => start())();
+  passInFlight = pass;
+
+  try {
+    return await pass;
+  } finally {
+    passInFlight = null;
+  }
 };
 
 /** Puts every spent entry back into play, for the indicator's "retry" button. */
-export const retryFailedSyncQueue = async (options = {}) => {
-  for (const entry of await getFailedSyncQueueItems()) {
-    await updateSyncQueueItem({ ...entry, failed: false, attempts: 0, lastAttemptAt: null, lastError: null });
-  }
-  return flushSyncQueue(options);
-};
+export const retryFailedSyncQueue = (options = {}) =>
+  exclusively(async () => {
+    for (const entry of await getFailedSyncQueueItems()) {
+      await updateSyncQueueItem({ ...entry, failed: false, attempts: 0, lastAttemptAt: null, lastError: null });
+    }
+    return flushOnce(options);
+  });
 
 // ---------------------------------------------------------------------------
 // What the indicator shows

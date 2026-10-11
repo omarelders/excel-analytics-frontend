@@ -25,7 +25,6 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { MAX_SYNC_ATTEMPTS } from '../../src/utils/offlineStorage.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const HARNESS = path.join(ROOT, 'test', 'security', 'offlineQueueHarness.mjs');
@@ -103,6 +102,13 @@ function run(steps, options = {}) {
 
 const last = (report) => report.snapshots[report.snapshots.length - 1];
 const after = (report, doStep) => report.snapshots.filter((snapshot) => snapshot.do === doStep).pop();
+
+/**
+ * The attempt cap the queue itself enforces, read back out of the mirrored source
+ * module (see `limits` in the harness report) rather than written down here, so a cap
+ * that moves in `src/` moves what these tests demand.
+ */
+const attemptCap = (report) => report.limits.maxSyncAttempts;
 
 const callResult = (report) => {
   const [rejected] = report.rejections;
@@ -273,8 +279,8 @@ test('an entry that keeps failing stops after the attempt cap instead of retryin
   const spent = after(report, 'render');
   assert.equal(
     spent.requests.length,
-    MAX_SYNC_ATTEMPTS,
-    `expected ${MAX_SYNC_ATTEMPTS} attempts and no more, got ${spent.requests.length}`,
+    attemptCap(report),
+    `expected ${attemptCap(report)} attempts and no more, got ${spent.requests.length}`,
   );
   for (const request of spent.requests) {
     assert.equal(request.url, '/api/notes', 'the replay sent something other than the queued change');
@@ -285,11 +291,11 @@ test('an entry that keeps failing stops after the attempt cap instead of retryin
   const entry = spent.queue[0];
   assert.ok(entry, 'the failed change vanished from the queue rather than being reported');
   assert.equal(entry.failed, true, 'the entry was left looking pending after it had spent its attempts');
-  assert.equal(entry.attempts, MAX_SYNC_ATTEMPTS, 'the attempt count does not match the attempts that were made');
+  assert.equal(entry.attempts, attemptCap(report), 'the attempt count does not match the attempts that were made');
   assert.match(String(entry.lastError), /500/, 'the failure reason was not recorded for the user');
 
   // One more reconnect after the cap: the entry is spent, not merely unlucky.
-  assert.equal(last(report).requests.length, MAX_SYNC_ATTEMPTS, 'a spent entry was retried again');
+  assert.equal(last(report).requests.length, attemptCap(report), 'a spent entry was retried again');
   assert.equal(last(report).state.failures.length, 1, 'the spent entry is not surfaced to the user');
   assert.equal(last(report).state.pending, 0, 'the spent entry is still counted as pending');
 });
@@ -316,7 +322,9 @@ test('the user can put a spent entry back into play', () => {
           params: null,
           headers: {},
           timestamp: 0,
-          attempts: MAX_SYNC_ATTEMPTS,
+          // Past whatever the cap is: the entry has to look spent before the retry runs,
+          // and the cap itself is read back out of the source rather than duplicated here.
+          attempts: 99,
           lastAttemptAt: 0,
           lastError: 'the server answered 500',
           failed: true,
@@ -335,4 +343,185 @@ test('the user can put a spent entry back into play', () => {
   );
   assert.deepStrictEqual(last(report).queue, [], 'the entry the user retried was not removed after it sent');
   assert.equal(last(report).state.failures.length, 0, 'the indicator still reports a failure that was resolved');
+});
+
+// ---------------------------------------------------------------------------
+// Whose change is it? (cross-user replay)
+//
+// A queued entry is a whole request body, and a replay carries whatever cookie the
+// browser has when the device reconnects. An explicit logout destroys the queue
+// (Task 7); these tests cover the paths that do not go through one - another user
+// signing in, and a session simply expiring - and the one that has to keep working:
+// the same user coming back.
+// ---------------------------------------------------------------------------
+
+/** A shipment mutation with a recipient's details in it, queued by user A. */
+const SHIPMENT_BODY = { id: 'GR-1001', recipient: 'Recipient Name', phone: '+1-555-0100' };
+const queuedShipment = { do: 'request', method: 'post', url: '/api/shipments', data: SHIPMENT_BODY };
+
+const USER_A = { id: 7, username: 'auditor', email: 'auditor@example.invalid' };
+const USER_B = { id: 8, username: 'reviewer', email: 'reviewer@example.invalid' };
+
+/** `user_data`, the key `AuthContext.jsx` writes for whoever is signed in. */
+const signedInAs = (user) => ({ user_data: JSON.stringify(user) });
+const signInAs = (user) => ({ do: 'login', username: user.username });
+
+const sentRequests = (report) => report.requests.map(({ method, url, body }) => ({ method, url, body: body.value }));
+
+test('a queued mutation is stamped with the session that queued it', () => {
+  const report = run([{ do: 'online', value: false }, queuedShipment], {
+    seed: { localStorage: signedInAs(USER_A) },
+  });
+
+  const entry = queuedEntry(report);
+  assert.equal(
+    entry.sessionIdentity,
+    'id:7',
+    'the queued mutation was not stamped with the user who queued it, so a replay cannot tell whose it is',
+  );
+  // Not vacuous: the stamp changes with the session that is signed in.
+  const anonymous = run([{ do: 'online', value: false }, queuedShipment]);
+  assert.equal(
+    queuedEntry(anonymous).sessionIdentity ?? null,
+    null,
+    'a device with no signed-in user was stamped with an identity anyway',
+  );
+});
+
+test('a change one user queued offline is not replayed after another user signs in on that device', () => {
+  const report = run(
+    [
+      { do: 'online', value: false },
+      queuedShipment,
+      { do: 'online', value: true },
+      signInAs(USER_B),
+      { do: 'flush' },
+    ],
+    {
+      seed: { localStorage: signedInAs(USER_A) },
+      session: { status: 200, user: USER_B },
+    },
+  );
+
+  // The device really did change hands: the login ran, and `user_data` is B's.
+  assert.deepStrictEqual(
+    report.sessionCalls.map(({ url }) => url),
+    ['/api/auth/login', '/api/auth/me'],
+    'the login did not run, so this scenario never changed user',
+  );
+  assert.equal(last(report).localStorage.user_data, JSON.stringify(USER_B), 'the device is not signed in as user B');
+
+  assert.deepStrictEqual(
+    sentRequests(report),
+    [],
+    "user A's queued shipment was sent under user B's session - the cross-user replay",
+  );
+  assert.deepStrictEqual(
+    last(report).queue,
+    [],
+    "the entry is still on the device, so it would be retried under the next session too",
+  );
+
+  // It was dropped rather than merely skipped: a queue entry that can never be sent
+  // must not sit there looking pending.
+  assert.equal(last(report).state.pending, 0, 'the indicator would still be counting a change that can never send');
+});
+
+test('a change one user queued offline is dropped at replay once that session has expired', () => {
+  // The implicit path: no logout, no second user, the session just ends. The real
+  // `validateSession()` runs against a 401, which is what removes `user_data`.
+  const report = run(
+    [
+      { do: 'online', value: false },
+      queuedShipment,
+      { do: 'validate' },
+      { do: 'online', value: true },
+      { do: 'flush' },
+    ],
+    {
+      seed: { localStorage: signedInAs(USER_A) },
+      session: { status: 401 },
+    },
+  );
+
+  assert.equal(
+    last(report).localStorage.user_data,
+    undefined,
+    'the expired session left user_data behind, so the device still looks like user A',
+  );
+  assert.deepStrictEqual(
+    sentRequests(report),
+    [],
+    'the queued shipment was replayed after the session that queued it had expired',
+  );
+  assert.deepStrictEqual(last(report).queue, [], 'the expired entry was left in the queue');
+});
+
+test('the same user signing back in still replays what they queued offline', () => {
+  // The other half of the fix, and the reason the queue is not simply cleared at
+  // login: a re-login as yourself must not cost you the change you saved.
+  const report = run(
+    [
+      { do: 'online', value: false },
+      queuedShipment,
+      { do: 'validate' },
+      signInAs(USER_A),
+      { do: 'online', value: true },
+      { do: 'flush' },
+    ],
+    {
+      seed: { localStorage: signedInAs(USER_A) },
+      session: { status: 200, user: USER_A },
+    },
+  );
+
+  assert.deepStrictEqual(
+    sentRequests(report),
+    [{ method: 'post', url: '/api/shipments', body: SHIPMENT_BODY }],
+    'a change queued by this user was lost to a re-login as the same user',
+  );
+  assert.deepStrictEqual(last(report).queue, [], 'the replayed change survived its own replay');
+});
+
+// ---------------------------------------------------------------------------
+// Two flushes at once
+// ---------------------------------------------------------------------------
+
+test('two flushes started at the same time send each queued change exactly once', () => {
+  // The reconnect handler and the indicator's Sync button both reach `flushSyncQueue`,
+  // and both read the same queue. Without the in-flight guard each pass sends the
+  // entry, and a shipment mutation goes out twice with one `removeSyncQueueItem` to
+  // show for it. A slow transport is what makes them overlap.
+  const report = run([{ do: 'online', value: true }, { do: 'flush-twice' }], {
+    transport: { status: 200, delayMs: 50 },
+    seed: {
+      queue: [
+        {
+          url: '/api/shipments',
+          method: 'post',
+          data: SHIPMENT_BODY,
+          params: null,
+          headers: {},
+          timestamp: 0,
+          attempts: 0,
+          lastAttemptAt: null,
+          lastError: null,
+          failed: false,
+        },
+      ],
+    },
+  });
+
+  assert.deepStrictEqual(
+    sentRequests(report),
+    [{ method: 'post', url: '/api/shipments', body: SHIPMENT_BODY }],
+    'two concurrent flushes sent the same queued mutation more than once',
+  );
+  assert.deepStrictEqual(last(report).queue, [], 'the entry was not removed after it was sent');
+
+  const [first, second] = report.concurrentFlushes;
+  assert.ok(first && second, 'both flush calls produced no result at all');
+  assert.equal(first.sent, 1, 'the first flush did not report the change it sent');
+  assert.equal(second.sent, 1, 'the second flush did not report the same pass the first one ran');
+  assert.deepStrictEqual(first, second, 'the two callers were not given the same pass');
 });

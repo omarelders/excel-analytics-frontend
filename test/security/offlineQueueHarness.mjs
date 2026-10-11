@@ -12,15 +12,17 @@
  *   before it decides to queue a mutation,
  * - `localStorage` and a fake IndexedDB the real `idb` package drives, so the queue is
  *   read and written by `src/utils/offlineStorage.js`'s own code,
+ * - a `fetch` that answers the session endpoints from the scenario, so `login()` and
+ *   `validateSession()` in the real `src/context/AuthContext.jsx` run their own code,
  * - a transport stub on the real axios instance - the adapter, which is the boundary
  *   every request `src/api.js` sends goes through - that records the fully built
  *   request and answers from the scenario,
  *
  * and then runs the scenario's steps: a request through the real `api`, a reconnect,
- * a flush, a render of the real `OfflineIndicator`. Nothing here decides whether a
- * payload can be queued, what a retry costs, when an entry is spent, or what the user
- * is told: those are the decisions `src/` makes, and this harness only reports what
- * happened.
+ * a flush, a login, a render of the real `OfflineIndicator`. Nothing here decides
+ * whether a payload can be queued, what a retry costs, when an entry is spent, which
+ * session an entry belongs to, or what the user is told: those are the decisions
+ * `src/` makes, and this harness only reports what happened.
  *
  * `src/` is written in JSX and imports `import.meta.env`, neither of which Node can load
  * as-is, so the modules on this path are copied out with esbuild into
@@ -39,14 +41,18 @@
  * - `origin` (default https://goldroad.invalid),
  * - `clock` (default 0): the value `flushSyncQueue` is given for "now", so the retry
  *   backoff is exercised without waiting for it,
- * - `transport` ({ status, networkError }): what the stub answers,
- * - `seed.queue`: entries to write into the queue before the steps run,
+ * - `transport` ({ status, networkError, delayMs }): what the stub answers, and how
+ *   long it holds a response open - the delay is what makes a second flush overlap
+ *   the first,
+ * - `session` ({ status, user }): what `/api/auth/login` and `/api/auth/me` answer,
+ * - `seed`: `localStorage`, `sessionStorage` and `queue` entries to write before the
+ *   steps run - `localStorage.user_data` is what makes a scenario signed in as someone,
  * - `steps`: the run.
  *
- * Step kinds: `online`, `request`, `flush`, `retry-failed`, `attach-engine`, `event`,
- * `advance`, `render`. The queue, the published sync state, every request the transport
- * saw, every rejection `api` produced and every window event are snapshotted after each
- * step.
+ * Step kinds: `online`, `request`, `flush`, `flush-twice`, `login`, `validate`,
+ * `retry-failed`, `attach-engine`, `event`, `advance`, `render`. The queue, the
+ * published sync state, every request the transport saw, every session call, every
+ * rejection `api` produced and every window event are snapshotted after each step.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -66,11 +72,14 @@ const MIRROR = path.join(ROOT, 'node_modules', '.cache', 'offline-queue-mirror')
 
 /** The modules on the offline queue path, in dependency order. */
 const MODULES = [
+  'src/utils/cachePurge.js',
+  'src/utils/sessionIdentity.js',
   'src/config/apiBaseUrl.js',
   'src/utils/offlineStorage.js',
   'src/utils/syncQueue.js',
   'src/api.js',
   'src/components/OfflineIndicator.jsx',
+  'src/context/AuthContext.jsx',
 ];
 
 /**
@@ -121,6 +130,27 @@ const createStorage = () => {
 };
 
 const localStorage = createStorage();
+const sessionStorage = createStorage();
+
+// ---------------------------------------------------------------------------
+// Cache Storage
+//
+// `src/utils/cachePurge.js` is on the path now that `src/context/AuthContext.jsx` is
+// mirrored, and `AuthProvider` reads `sessionStorage` while rendering. Neither is
+// exercised by the queue scenarios; both are here so the real modules load.
+// ---------------------------------------------------------------------------
+
+const caches = {
+  async open() {
+    throw new Error('the offline-queue harness does not exercise Cache Storage');
+  },
+  async keys() {
+    return [];
+  },
+  async delete() {
+    return false;
+  },
+};
 
 // ---------------------------------------------------------------------------
 // The browser window and the connectivity flag
@@ -138,8 +168,10 @@ const window = new EventTarget();
 window.location = { href: SCOPE, hostname: new URL(SCOPE).hostname, origin: ORIGIN };
 window.navigator = navigatorRef;
 window.localStorage = localStorage;
+window.sessionStorage = sessionStorage;
+window.caches = caches;
 
-Object.assign(globalThis, { window, localStorage });
+Object.assign(globalThis, { window, localStorage, sessionStorage, caches });
 
 /** Which step the harness is on, and the clock a flush is told is "now". */
 let currentStep = 'boot';
@@ -393,6 +425,31 @@ const rejections = [];
 const transport = scenario.transport ?? {};
 const transportStatus = transport.status ?? 200;
 const transportNetworkError = transport.networkError === true;
+const transportDelayMs = transport.delayMs ?? 0;
+
+// ---------------------------------------------------------------------------
+// The session endpoints
+//
+// `AuthContext.jsx` authenticates by `fetch`ing `/api/auth/login` and then
+// `/api/auth/me`. Both are answered from one scripted user, so a scenario signs
+// in as whoever it says and nothing has to imitate the server's logic.
+// ---------------------------------------------------------------------------
+
+const sessionCalls = [];
+const sessionScript = scenario.session ?? { status: 200, user: {} };
+const sessionStatus = sessionScript.status ?? 200;
+const sessionUser = sessionScript.user ?? {};
+
+globalThis.fetch = async (request, options) => {
+  const url = String(typeof request === 'string' ? request : request.url);
+  const method = options?.method ?? (typeof request === 'object' ? request.method : undefined) ?? 'GET';
+  sessionCalls.push({ url, method, credentials: options?.credentials ?? undefined });
+
+  if (sessionStatus >= 400) {
+    return new Response('', { status: sessionStatus });
+  }
+  return new Response(JSON.stringify(sessionUser), { status: sessionStatus, headers: { 'content-type': 'application/json' } });
+};
 
 // ---------------------------------------------------------------------------
 // The run
@@ -435,13 +492,19 @@ const snapshotState = async (getSyncQueue, getSyncState) => ({
     return { ...rest, failures: failures.map((entry) => ({ ...entry })) };
   })(),
   localStorage: localStorage.snapshot(),
+  sessionStorage: sessionStorage.snapshot(),
 });
 
 const snapshots = [];
+/** The results of a `flush-twice` step, so the report shows what each caller got. */
+let concurrentFlushes = [];
+/** The mirrored storage module, so the report can read the queue's own limits back. */
+let storageModule = null;
 
 const run = async () => {
   const { default: api } = await import(pathToFileURL(mirrorModules()).href);
   const storage = await import(pathToFileURL(path.join(MIRROR, 'src/utils/offlineStorage.mjs')).href);
+  storageModule = storage;
   const { flushSyncQueue, retryFailedSyncQueue, refreshSyncState, attachSyncEngine, getSyncState } = await import(
     pathToFileURL(path.join(MIRROR, 'src/utils/syncQueue.mjs')).href
   );
@@ -458,6 +521,12 @@ const run = async () => {
       syncRequest: config._isSyncRequest === true,
       body: await describeBody(config.data),
     });
+
+    // A response held open is what lets a second pass overlap the first: a transport
+    // that answers in one microtask finishes before anything else can start.
+    if (transportDelayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, transportDelayMs));
+    }
 
     if (transportNetworkError) {
       throw new TypeError('connect ECONNREFUSED 127.0.0.1:443');
@@ -492,19 +561,72 @@ const run = async () => {
   for (const entry of scenario.seed?.queue ?? []) {
     await storage.updateSyncQueueItem(entry);
   }
+
+  // A scenario that wants to be signed in seeds `user_data`, the same key
+  // `AuthContext.jsx` writes on a successful validation.
+  for (const [key, value] of Object.entries(scenario.seed?.localStorage ?? {})) {
+    localStorage.setItem(key, value);
+  }
+  for (const [key, value] of Object.entries(scenario.seed?.sessionStorage ?? {})) {
+    sessionStorage.setItem(key, value);
+  }
+
   await refreshSyncState();
 
   const clockNow = () => clock;
   const flushWithClock = (options = {}) => flushSyncQueue({ ...options, now: clockNow });
 
+  /**
+   * The real `AuthProvider`, rendered so the context it publishes can be reached.
+   * Rendered lazily: nothing on the queue path needs it, and rendering it twice would
+   * re-read storage that the scenario has already moved on from.
+   */
+  let auth = null;
+  const loadAuth = async () => {
+    if (auth) {
+      return auth;
+    }
+
+    const { AuthProvider, useAuth } = await import(pathToFileURL(path.join(MIRROR, 'src/context/AuthContext.mjs')).href);
+
+    function AuthProbe() {
+      auth = useAuth();
+      return null;
+    }
+
+    renderToStaticMarkup(createElement(AuthProvider, null, createElement(AuthProbe)));
+    return auth;
+  };
+
   /** One step, and the state it left behind. */
   const step = async (current) => {
     currentStep = current.do;
     let markup = null;
+    let stepNote = null;
 
     switch (current.do) {
       case 'online':
         setOnline(current.value !== false);
+        break;
+
+      case 'login':
+        // The real `login()`: it posts to the stubbed session endpoints, runs the real
+        // `validateSession()` (which writes `user_data`), and then decides what happens
+        // to a queue stamped with someone else's identity.
+        try {
+          await (await loadAuth()).login(current.username ?? 'auditor', current.password ?? 'secret', current.rememberMe ?? false);
+          stepNote = { ok: true };
+        } catch (error) {
+          stepNote = { ok: false, message: String(error?.message ?? error) };
+        }
+        break;
+
+      case 'validate':
+        try {
+          stepNote = { user: (await (await loadAuth()).validateSession()) ?? null };
+        } catch (error) {
+          stepNote = { error: String(error?.message ?? error) };
+        }
         break;
 
       case 'request': {
@@ -535,6 +657,14 @@ const run = async () => {
 
       case 'flush':
         await flushWithClock();
+        break;
+
+      case 'flush-twice':
+        // Two passes started at the same moment - a reconnect and the Sync button, or
+        // two tabs - without waiting for either. The results are recorded so the report
+        // says whether both callers saw the same pass.
+        concurrentFlushes = await Promise.all([flushWithClock(), flushWithClock()]);
+        stepNote = { results: concurrentFlushes };
         break;
 
       case 'retry-failed':
@@ -569,7 +699,7 @@ const run = async () => {
 
     await settle(2);
     const snapshot = await snapshotState(storage.getSyncQueue, getSyncState);
-    snapshots.push({ do: current.do, ...current, markup, ...snapshot, requests: [...requests] });
+    snapshots.push({ do: current.do, ...current, markup, note: stepNote, ...snapshot, requests: [...requests] });
   };
 
   for (const current of scenario.steps ?? []) {
@@ -591,6 +721,11 @@ const report = {
   rejections,
   events,
   requests,
+  sessionCalls,
+  concurrentFlushes,
+  // The queue's own limits, read out of the mirrored (source) module rather than copied
+  // here, so a bound that changes in `src/` changes what the tests assert about it.
+  limits: { maxSyncAttempts: storageModule?.MAX_SYNC_ATTEMPTS ?? null },
   harnessError: snapshots.find((snapshot) => snapshot.harnessError)?.harnessError ?? null,
 };
 

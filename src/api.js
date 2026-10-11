@@ -107,6 +107,11 @@ api.interceptors.response.use(
     switch (status) {
       case 401:
         // Unauthorized - clear token and redirect to login (if auth is implemented)
+        // Auth is cookie-based, so this key is one the app never writes; the
+        // session it reports is gone either way. The offline queue is deliberately
+        // left alone here: each entry is stamped with the session that queued it
+        // (src/utils/sessionIdentity.js), so a replay under the next session is
+        // refused by the flush rather than sent.
         console.warn('[API] 401 Unauthorized - session expired or invalid');
         localStorage.removeItem('authToken');
         // Could redirect to login: window.location.href = '/login';

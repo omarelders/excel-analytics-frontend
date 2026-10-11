@@ -1,6 +1,6 @@
 import { createContext, useState, useContext, useEffect } from 'react'
 import { API_BASE_URL } from '../config/apiBaseUrl'
-import { clearOfflineStorage } from '../utils/offlineStorage'
+import { clearOfflineStorage, discardSyncQueueEntriesFromOtherSessions } from '../utils/offlineStorage'
 import { purgeAppCaches } from '../utils/cachePurge'
 
 const AuthContext = createContext(null)
@@ -67,7 +67,11 @@ export function AuthProvider({ children }) {
         localStorage.setItem('user_data', JSON.stringify(data))
         return data
       } else {
-        // Session expired or invalid
+        // Session expired or invalid. Removing `user_data` is also what closes the
+        // implicit path into a cross-user replay: the queue stamps each entry with
+        // the session that queued it, so an expired session leaves the device with
+        // no identity to match and a replay refuses those entries instead of
+        // sending them under whoever signs in next (src/utils/sessionIdentity.js).
         setUser(null)
         localStorage.removeItem('user_data')
         return null
@@ -99,13 +103,33 @@ export function AuthProvider({ children }) {
     }
 
     const data = await response.json()
-    
+
     // Validate cookie-based session immediately; avoids silent login loops.
     const validatedUser = await validateSession()
     if (!validatedUser) {
       throw new Error(
         'Login succeeded but the session cookie was not persisted. Check API domain/cookie configuration.'
       )
+    }
+
+    // The identity on this device just changed, and the offline queue is stamped with
+    // the session that queued each entry. An entry stamped with any other identity
+    // would replay under the cookie this login just established - user A's queued
+    // shipment going out as user B - so those go now, at the boundary.
+    //
+    // This is not `clearOfflineStorage()`: entries this user queued themselves keep
+    // their stamp and still replay, which is what "will sync when you are back
+    // online" promised them. Logout still wipes the store outright, because there the
+    // session is over rather than replaced.
+    //
+    // A failure here is logged and not thrown: a device whose IndexedDB just stopped
+    // answering cannot be holding queue entries, and refusing the login would leave
+    // the user signed out over a session the server has already created. The replay
+    // itself is what refuses a foreign entry, so it does not depend on this running.
+    try {
+      await discardSyncQueueEntriesFromOtherSessions()
+    } catch (error) {
+      console.error('Error discarding offline changes from a previous session:', error)
     }
 
     return data

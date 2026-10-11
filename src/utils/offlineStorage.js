@@ -1,4 +1,5 @@
 import { openDB } from 'idb';
+import { currentSessionIdentity, isQueuedUnderCurrentSession } from './sessionIdentity';
 
 const DB_NAME = 'gold-road-db';
 const DB_VERSION = 1;
@@ -40,7 +41,13 @@ export const initDB = async () => {
  *    persisting cleartext credentials (active credentials are reattached at replay time).
  * 2. clearOfflineStorage() is invoked on user logout (AuthContext.jsx) to wipe all
  *    IndexedDB stores and prevent post-session forensic data extraction.
- * 3. Future recommendation: encrypt request.data using the Web Crypto API with an
+ * 3. Every queue entry is stamped with the session that queued it (see
+ *    `src/utils/sessionIdentity.js`), and a replay compares the stamp with the
+ *    session that is about to send it. A queued mutation therefore cannot outlive
+ *    its session on a shared device: the explicit logout wipes the store, and the
+ *    implicit paths (an expiry, another user logging in) are closed by the stamp
+ *    rather than by a purge that would also destroy the user's own work.
+ * 4. Future recommendation: encrypt request.data using the Web Crypto API with an
  *    in-memory session key if offline queuing of sensitive PII must be protected at rest.
  */
 
@@ -179,6 +186,10 @@ export const addToSyncQueue = async (request) => {
     lastAttemptAt: null,
     lastError: null,
     failed: false,
+    // Who queued it. A replay runs under the cookie the browser sends at the time,
+    // which is the current session's and not necessarily this one's - see
+    // `src/utils/sessionIdentity.js`.
+    sessionIdentity: currentSessionIdentity(),
   };
 
   assertStorable(entry);
@@ -213,6 +224,34 @@ export const getPendingSyncQueueCount = async () =>
 /** Entries that burned MAX_SYNC_ATTEMPTS and were never sent. */
 export const getFailedSyncQueueItems = async () =>
   (await getSyncQueue()).filter((entry) => entry.failed === true);
+
+/**
+ * Discards queued mutations that belong to a session other than the current one.
+ *
+ * A login is the moment the identity on this device changes, so it is the moment
+ * to notice: an entry stamped with a different identity can never be replayed
+ * under this session's cookie, and keeping it would leave one user's request
+ * bodies on disk through another user's session - the cleartext PII
+ * `clearOfflineStorage()` exists to remove.
+ *
+ * Entries the current user queued themselves are left alone, which is why this is
+ * not a purge: "will sync when you are back online" has to survive a user
+ * re-logging in as themselves. Returns what was discarded, so the caller can say
+ * so instead of guessing.
+ */
+export const discardSyncQueueEntriesFromOtherSessions = async () => {
+  const discarded = [];
+
+  for (const entry of await getSyncQueue()) {
+    if (isQueuedUnderCurrentSession(entry)) {
+      continue;
+    }
+    await removeSyncQueueItem(entry.id);
+    discarded.push(entry);
+  }
+
+  return discarded;
+};
 
 /**
  * Writes an entry back: the replay bookkeeping (attempt count, last error) lives on the

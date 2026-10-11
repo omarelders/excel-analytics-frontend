@@ -205,12 +205,22 @@ test('the worker asks the network for nothing the shipped CSP would block', () =
   }
 });
 
-test('the worker keeps no dead exclusion list that reads like protection', () => {
+// ---------------------------------------------------------------------------
+// A deletion guard
+//
+// Everything above boots the worker and asserts what it did. This one can only be a
+// source-text check: it protects against code coming *back*, and dead code that never
+// runs leaves no post-state to assert. `verify_security.mjs` was deleted because it
+// claimed to be a behavioural check and was not one; this is the same mechanism with
+// its nature stated, and the behaviour it used to describe is covered above.
+// ---------------------------------------------------------------------------
+
+test('DELETION GUARD (source text, not behaviour): the worker does not regain the exclusion list that read like protection', () => {
   const source = fs.readFileSync(path.join(ROOT, 'src/sw.js'), 'utf8');
 
-  assert.ok(!/EXCLUDED_CACHE_ROUTES|isExcludedRoute/.test(source), 'the unreachable exclusion list is still in src/sw.js');
-  assert.ok(!/SAFE_API_PREFIXES|isSafeApiPath/.test(source), 'the old "safe path" name survives, describing a blocklist that no longer exists');
-  assert.ok(/CACHEABLE_API_PREFIXES/.test(source), 'src/sw.js must keep its allowlist of cacheable API paths');
+  assert.ok(!/EXCLUDED_CACHE_ROUTES|isExcludedRoute/.test(source), 'the unreachable exclusion list is back in src/sw.js');
+  assert.ok(!/SAFE_API_PREFIXES|isSafeApiPath/.test(source), 'the old "safe path" name is back, describing a blocklist that no longer exists');
+  assert.ok(/CACHEABLE_API_PREFIXES/.test(source), 'src/sw.js no longer names its allowlist of cacheable API paths');
 });
 
 // ---------------------------------------------------------------------------

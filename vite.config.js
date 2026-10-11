@@ -1,6 +1,12 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { assertApiBaseIsSameOriginSafe } from './scripts/assertSameOriginApi.mjs'
+
+// Refuses a configuration the shipped CSP then blocks outright. See the guard's own
+// notes: the flag it rejects is a no-op on every host where it could be watched, and
+// a total silent failure on the one where it cannot.
+assertApiBaseIsSameOriginSafe()
 
 // https://vite.dev/config/
 export default defineConfig({
