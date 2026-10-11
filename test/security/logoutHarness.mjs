@@ -13,13 +13,17 @@
  * - a `fetch` that answers from the scenario,
  *
  * and then renders the real provider through `react-dom/server`, reaches into
- * the context it published, and calls the real `logout()`. Nothing here decides
- * which cache is deleted, what is erased from storage, or whether a failed
- * logout is allowed to look successful: those are the decisions `src/` makes,
- * and this harness only reports what happened.
+ * the context it published, and calls the real `logout()`. With `confirmLogout`
+ * in the scenario it calls the real `confirmLogout()` instead - the page's own
+ * path, which reads the pending queue and asks before the purge runs - and
+ * records what the user was asked and what they answered. Nothing here decides
+ * which cache is deleted, what is erased from storage, whether a failed logout
+ * is allowed to look successful, or whether an unsynced queue is warned about:
+ * those are the decisions `src/` makes, and this harness only reports what
+ * happened.
  *
  * `src/` is written in JSX and imports `import.meta.env`, neither of which Node
- * can load as-is, so the four modules on the logout path are copied out with
+ * can load as-is, so the five modules on the logout path are copied out with
  * esbuild into `node_modules/.cache/logout-purge-mirror/`, which keeps the
  * import graph and rewrites nothing but the JSX, the injected `import.meta.env`
  * and the relative specifiers (Node's ESM loader wants the extension spelled
@@ -31,6 +35,10 @@
  *
  * Usage: node test/security/logoutHarness.mjs <scenario.json> <repo root>
  * Output: a JSON report on the final line, prefixed with `__RESULT__`.
+ *
+ * Scenario keys: `origin`, `fetch` ({ status } | { networkError }), `seed`
+ * ({ localStorage, sessionStorage, syncQueue, cacheEntries }) and optionally
+ * `confirmLogout` ({ answer }), which switches the run to the page's path.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -52,6 +60,7 @@ const MIRROR = path.join(ROOT, 'node_modules', '.cache', 'logout-purge-mirror');
 const MODULES = [
   'src/utils/cachePurge.js',
   'src/utils/offlineStorage.js',
+  'src/utils/logoutConfirmation.js',
   'src/config/apiBaseUrl.js',
   'src/context/AuthContext.jsx',
 ];
@@ -219,6 +228,20 @@ class IDBObjectStore {
     return this._request(undefined);
   }
 
+  /** `idb`'s `db.count(store)`; `offlineStorage.getSyncQueueCount()` reads this. */
+  count() {
+    return this._request(this.records.size);
+  }
+
+  delete(key) {
+    const request = new FakeIDBRequest();
+    queueMicrotask(() => {
+      this.records.delete(key);
+      request._succeed(undefined);
+    });
+    return request;
+  }
+
   getAll() {
     return this._request([...this.records.values()]);
   }
@@ -374,6 +397,8 @@ const report = {
   caches: {},
   logoutError: null,
   fetchCalls,
+  confirmCalls: [],
+  confirmOutcome: null,
 };
 
 /** Cache names and their entry URLs, so the report can be asserted cache by cache. */
@@ -419,10 +444,32 @@ const run = async () => {
 
   cacheOperations.length = 0;
 
-  try {
-    await auth.logout();
-  } catch (error) {
-    report.logoutError = String(error?.message ?? error);
+  if (scenario.confirmLogout) {
+    // The page's own path: `confirmLogout()` reads the pending queue through the
+    // real `getSyncQueueCount` (real `idb` over the fake IndexedDB), asks, and
+    // only then calls the real `logout()`. Only the answer is injected, the way
+    // `fetch` is the injected boundary everywhere else in this harness.
+    const { confirmLogout } = await import(
+      pathToFileURL(path.join(MIRROR, 'src/utils/logoutConfirmation.mjs')).href
+    );
+
+    try {
+      report.confirmOutcome = await confirmLogout({
+        logout: auth.logout,
+        ask: (message) => {
+          report.confirmCalls.push(message);
+          return scenario.confirmLogout.answer;
+        },
+      });
+    } catch (error) {
+      report.logoutError = String(error?.message ?? error);
+    }
+  } else {
+    try {
+      await auth.logout();
+    } catch (error) {
+      report.logoutError = String(error?.message ?? error);
+    }
   }
 
   report.caches = snapshotCaches();

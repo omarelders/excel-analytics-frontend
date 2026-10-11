@@ -17,6 +17,10 @@
  * PWA boot with no network. The list comes from `src/utils/cachePurge.js`, so a
  * cache the worker gains and the purge does not is caught by the last test in
  * this file rather than by somebody remembering.
+ *
+ * The last section below drives the page's own path, `confirmLogout()`, which
+ * reads the pending offline queue and asks before the purge runs; the answer is
+ * injected and everything else is the shipped code.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -286,6 +290,84 @@ test('a 401 from the logout endpoint is reconciled: there is no session left, so
   }
   assert.deepStrictEqual(entriesIn(report, PRECACHE), SEEDED_ENTRIES[PRECACHE], 'the precache was not preserved');
   assert.deepStrictEqual(report.syncQueue, [], 'the offline queue survived the reconciled logout');
+});
+
+// ---------------------------------------------------------------------------
+// The warning before an unsynced loss
+//
+// `logout()` clears the pending sync queue, and those entries cannot be replayed
+// afterwards (report §3). The page therefore asks first, through the real
+// `confirmLogout()`. These tests run that path with the real queue count, the
+// real logout and an injected answer.
+// ---------------------------------------------------------------------------
+
+/** Runs the page's confirmation path; `answer` is what the user clicks. */
+const confirmRun = (answer, { queue = SEEDED_SYNC_QUEUE } = {}) =>
+  logout({ status: 200 }, (fetch) => {
+    const seeded = scenario(fetch);
+    seeded.confirmLogout = { answer };
+    seeded.seed.syncQueue = queue;
+    return seeded;
+  });
+
+test('a user with unsynced work is warned, and cancelling keeps the queue and the session', () => {
+  const report = confirmRun(false);
+
+  assert.equal(report.confirmCalls.length, 1, 'the user was not warned about what a logout would destroy');
+  assert.match(
+    report.confirmCalls[0],
+    /1 change saved on this device has not reached the server/,
+    'the warning did not say what is about to be lost, or how much',
+  );
+  assert.match(report.confirmCalls[0], /permanently/, 'the warning did not say the loss is irreversible');
+  assert.equal(report.confirmOutcome, 'cancelled', 'the outcome does not report the cancellation');
+
+  // Nothing was erased and the session was never ended on the server.
+  assert.deepStrictEqual(report.caches, report.seeded.cacheEntries, 'a cancelled logout still changed Cache Storage');
+  assert.deepStrictEqual(
+    report.operations.filter((operation) => operation.action === 'delete-cache'),
+    [],
+    'a cancelled logout still deleted a cache',
+  );
+  assert.deepStrictEqual(report.localStorage, SEEDED_STORAGE, 'a cancelled logout still erased localStorage');
+  assert.deepStrictEqual(report.sessionStorage, { app_opened: 'true' }, 'a cancelled logout still erased sessionStorage');
+  assert.deepStrictEqual(report.syncQueue, report.seeded.syncQueue, 'a cancelled logout still dropped the offline queue');
+  assert.deepStrictEqual(report.fetchCalls, [], 'a cancelled logout still ended the session on the server');
+});
+
+test('confirming the warning logs out and purges', () => {
+  const report = confirmRun(true);
+
+  assert.equal(report.confirmCalls.length, 1, 'the warning was not offered before the purge');
+  assert.equal(report.confirmOutcome, 'logged-out');
+  assert.deepStrictEqual(
+    report.fetchCalls,
+    [{ url: '/api/auth/logout', method: 'POST', credentials: 'include' }],
+    'the confirmed logout did not end the session on the server',
+  );
+
+  for (const name of APP_CACHE_NAMES) {
+    assert.equal(entriesIn(report, name), undefined, `${name} survived a logout the user confirmed`);
+  }
+  assert.deepStrictEqual(entriesIn(report, PRECACHE), SEEDED_ENTRIES[PRECACHE], 'the precache was not preserved');
+  assert.deepStrictEqual(report.syncQueue, [], 'the offline queue survived a logout the user was warned about');
+});
+
+test('an empty queue logs out without asking', () => {
+  const report = confirmRun(true, { queue: [] });
+
+  assert.deepStrictEqual(report.confirmCalls, [], 'a user with nothing to lose was still prompted');
+  assert.equal(report.confirmOutcome, 'logged-out');
+  assert.equal(report.seeded.syncQueue.length, 0, 'the run did not start from an empty queue');
+
+  for (const name of APP_CACHE_NAMES) {
+    assert.equal(entriesIn(report, name), undefined, `${name} survived a logout with nothing queued`);
+  }
+  assert.deepStrictEqual(
+    report.fetchCalls,
+    [{ url: '/api/auth/logout', method: 'POST', credentials: 'include' }],
+    'the logout request was never sent',
+  );
 });
 
 // ---------------------------------------------------------------------------

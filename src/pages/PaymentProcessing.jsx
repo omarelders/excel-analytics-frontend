@@ -13,6 +13,7 @@ import {
   User
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { confirmLogout } from '../utils/logoutConfirmation'
 import FilesGridSkeleton from '../components/FilesGridSkeleton'
 import './PaymentProcessing.css'
 
@@ -29,6 +30,10 @@ function PaymentProcessingPage() {
   // Files grid state
   const [paymentFiles, setPaymentFiles] = useState([])
   const [loadingFiles, setLoadingFiles] = useState(false)
+
+  // The logout button's own pending state: reading the offline queue and
+  // confirming the loss both await IndexedDB and the logout request.
+  const [loggingOut, setLoggingOut] = useState(false)
 
   // Fetch all payment files on mount
   const fetchPaymentFiles = async () => {
@@ -166,12 +171,19 @@ function PaymentProcessingPage() {
   }
 
   const handleLogout = async () => {
+    setLoggingOut(true)
     try {
-      await logout()
+      // confirmLogout() reads the pending offline queue and asks before
+      // anything is destroyed, because a logout wipes it: those mutations never
+      // reached the server and cannot be replayed after the session ends.
+      await confirmLogout({ logout })
     } catch (error) {
-      // logout() rejects without touching the session when the server did not
-      // end it, so the status line is the whole story: still signed in.
+      // logout() and confirmLogout() reject without touching the session -
+      // the server did not end it, the user declined, or the queue could not be
+      // read - so the status line is the whole story: still signed in.
       setStatus({ type: 'error', message: error.message })
+    } finally {
+      setLoggingOut(false)
     }
   }
 
@@ -303,18 +315,19 @@ function PaymentProcessingPage() {
               <span>{user.username}</span>
             </div>
             
-            <button 
-              className="btn btn-ghost" 
+            <button
+              className="btn btn-ghost"
               onClick={handleLogout}
-              style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
+              disabled={loggingOut}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
                 gap: '0.5rem',
                 color: 'hsl(0, 84%, 60%)'
               }}
             >
-              <LogOut size={18} />
-              <span>Logout</span>
+              {loggingOut ? <Loader2 className="spin" size={18} /> : <LogOut size={18} />}
+              <span>{loggingOut ? 'Signing out...' : 'Logout'}</span>
             </button>
           </div>
         )}
