@@ -1,6 +1,7 @@
 import { createContext, useState, useContext, useEffect } from 'react'
 import { API_BASE_URL } from '../config/apiBaseUrl'
 import { clearOfflineStorage } from '../utils/offlineStorage'
+import { purgeAppCaches } from '../utils/cachePurge'
 
 const AuthContext = createContext(null)
 
@@ -111,47 +112,60 @@ export function AuthProvider({ children }) {
   }
 
   const logout = async () => {
+    let response
+
     try {
-      await fetch(`${API_BASE_URL}/api/auth/logout`, {
+      response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
         method: 'POST',
         credentials: 'include',
       })
     } catch (error) {
+      // The server may never have heard the request, so the cookie can still be
+      // valid: keep the session and everything on disk, and let the caller say
+      // so. Purging here is what used to leave the user looking logged out over
+      // a live session, which the next validateSession() then re-authenticated,
+      // rewriting user_data over the purge.
       console.error('Logout error:', error)
-    } finally {
-      setUser(null)
-      // Erase sensitive user and offline data
-      localStorage.removeItem('user_data')
-      localStorage.removeItem('authToken')
-      localStorage.removeItem('contentCalendarData')
-      localStorage.removeItem('ideasNotesData')
-      try {
-        sessionStorage.clear()
-      } catch (e) {
-        console.error('SessionStorage clear error:', e)
-      }
+      throw new Error(
+        'Logout failed: the server could not be reached, so your session is still active and nothing was erased. Please try again.'
+      )
+    }
 
-      // Clear Cache Storage so customer and financial data are never retained
-      if (typeof window !== 'undefined' && 'caches' in window && window.caches) {
-        try {
-          await window.caches.delete('api-cache')
-          const cacheKeys = await window.caches.keys()
-          await Promise.all(
-            cacheKeys
-              .filter(key => key.includes('api') || key.includes('data'))
-              .map(key => window.caches.delete(key))
-          )
-        } catch (err) {
-          console.error('Error clearing api caches:', err)
-        }
-      }
+    // 401 is the server stating there is no session left to destroy, so the local
+    // purge can proceed. Every other status leaves the cookie valid, and
+    // presenting a logged-out state over it is the failure this prevents.
+    if (!response.ok && response.status !== 401) {
+      throw new Error(
+        `Logout failed (${response.status}): the server did not end your session, so nothing was erased. Please try again.`
+      )
+    }
 
-      // Clear offline IndexedDB data
-      try {
-        await clearOfflineStorage()
-      } catch (err) {
-        console.error('Error clearing offline storage:', err)
-      }
+    setUser(null)
+    // Erase sensitive user and offline data
+    localStorage.removeItem('user_data')
+    localStorage.removeItem('authToken')
+    localStorage.removeItem('contentCalendarData')
+    localStorage.removeItem('ideasNotesData')
+    try {
+      sessionStorage.clear()
+    } catch (e) {
+      console.error('SessionStorage clear error:', e)
+    }
+
+    // Clear Cache Storage so customer and financial data are never retained.
+    // Every cache the service worker owns is enumerated by name in
+    // cachePurge.js - the workbox precache that lets the PWA boot offline is
+    // preserved by not being one of them.
+    await purgeAppCaches()
+
+    // Clear offline IndexedDB data. The pending sync queue goes with it: its
+    // entries are whole request bodies, and the session that would replay them
+    // is the one this logout just ended. A queue that outlived the session
+    // would replay this user's writes against the next user's.
+    try {
+      await clearOfflineStorage()
+    } catch (err) {
+      console.error('Error clearing offline storage:', err)
     }
   }
 

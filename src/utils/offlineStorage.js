@@ -84,8 +84,11 @@ export const getSyncQueueCount = async () => {
 
 /**
  * Data Caching Operations (for application-level offline read caching).
- * NOTE: Caching 'shipments' or 'orders' stores recipient details locally.
- * All stores are cleared upon logout via clearOfflineStorage().
+ * NOTE: 'shipments' and 'orders' would store recipient details locally, and
+ * clearOfflineStorage() clears them along with everything else on logout.
+ * Nothing calls these two functions today, so those stores are never written -
+ * the only store this module populates is 'syncQueue', and that is the one the
+ * logout purge actually has to remove.
  */
 export const cacheData = async (storeName, data) => {
   const db = await initDB();

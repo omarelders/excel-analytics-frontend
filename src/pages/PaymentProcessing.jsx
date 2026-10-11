@@ -166,7 +166,13 @@ function PaymentProcessingPage() {
   }
 
   const handleLogout = async () => {
-    await logout()
+    try {
+      await logout()
+    } catch (error) {
+      // logout() rejects without touching the session when the server did not
+      // end it, so the status line is the whole story: still signed in.
+      setStatus({ type: 'error', message: error.message })
+    }
   }
 
   return (

@@ -86,9 +86,15 @@ const CACHE_SCHEMA_VERSION = 1;
  * Cache Storage is best-effort storage, so the marker can be evicted while
  * `api-cache` survives; the next activation then re-runs the purge. The cost is
  * one bounded refill, because the allowlist above means `api-cache` can never
- * hold PII in the first place. A marker that survives that needs IndexedDB
- * rather than Cache Storage, so the re-run is accepted here and left to the
- * logout-purge work to replace.
+ * hold PII in the first place.
+ *
+ * The logout half of that hazard is closed: the logout purge in
+ * `src/utils/cachePurge.js` enumerates this cache, so a logout deletes the
+ * marker with everything else and the next activation migrates again rather
+ * than finding a marker describing a purge that no longer happened. The
+ * remaining half - a browser evicting this cache on its own - needs the marker
+ * in IndexedDB, which is a redesign of this mechanism, and is left as this
+ * note: the impact stays one refill of non-PII data.
  */
 const MIGRATION_CACHE_NAME = 'sw-migrations';
 
