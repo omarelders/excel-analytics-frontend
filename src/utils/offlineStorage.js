@@ -44,10 +44,121 @@ export const initDB = async () => {
  *    in-memory session key if offline queuing of sensitive PII must be protected at rest.
  */
 
+// ---------------------------------------------------------------------------
+// Payloads IndexedDB can hold
+// ---------------------------------------------------------------------------
+
+/**
+ * A payload this device cannot write to the queue. `src/api.js` turns this into an
+ * error the user sees, because the alternative - log it and send the request while
+ * offline - loses the change and lies about having saved it.
+ */
+export class UnqueueablePayloadError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'UnqueueablePayloadError';
+  }
+}
+
+/** Marks a queued payload that was a FormData before it was stored. */
+const FORM_DATA_MARKER = '__offlineFormData';
+
+const isFormData = (value) => typeof FormData !== 'undefined' && value instanceof FormData;
+
+/** Base64 in bounded chunks: a spreadsheet upload is large enough to blow the call stack. */
+const toBase64 = async (blob) => {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = '';
+  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+  }
+  return btoa(binary);
+};
+
+const fromBase64 = (base64) => Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
+
+/**
+ * Converts a request body into something IndexedDB will accept.
+ *
+ * `FormData` is not structured-cloneable, so a `POST /upload` used to throw
+ * DataCloneError out of `db.add` below. It is stored here as its fields instead:
+ * strings as strings, files as base64 with their name and type, so the replay can
+ * rebuild the same multipart body rather than a redacted placeholder.
+ */
+export const toQueueablePayload = async (data) => {
+  if (!isFormData(data)) {
+    return data;
+  }
+
+  const fields = [];
+  for (const [name, value] of data.entries()) {
+    if (typeof value === 'string') {
+      fields.push({ name, kind: 'string', value });
+      continue;
+    }
+    if (typeof Blob !== 'undefined' && value instanceof Blob) {
+      fields.push({
+        name,
+        kind: 'file',
+        filename: value.name || 'upload',
+        type: value.type || '',
+        size: value.size,
+        data: await toBase64(value),
+      });
+      continue;
+    }
+    throw new UnqueueablePayloadError(`the "${name}" field cannot be read back on this device`);
+  }
+
+  return { [FORM_DATA_MARKER]: fields };
+};
+
+/** The body `toQueueablePayload` was given, rebuilt for the request that replays it. */
+export const fromQueueablePayload = (data) => {
+  if (!data || typeof data !== 'object' || !Array.isArray(data[FORM_DATA_MARKER])) {
+    return data;
+  }
+
+  const form = new FormData();
+  for (const field of data[FORM_DATA_MARKER]) {
+    if (field.kind === 'string') {
+      form.append(field.name, field.value);
+      continue;
+    }
+    form.append(field.name, new File([fromBase64(field.data)], field.filename, { type: field.type }));
+  }
+  return form;
+};
+
+/**
+ * Refuses up front what IndexedDB would refuse later: the structured clone algorithm
+ * is the same one `db.add` runs, so a payload it rejects here is a payload that would
+ * have thrown after the queue had already been promised to the user.
+ */
+const assertStorable = (entry) => {
+  try {
+    structuredClone(entry);
+  } catch (error) {
+    throw new UnqueueablePayloadError(`this change cannot be stored for later (${error?.name ?? 'error'})`);
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Retry policy
+//
+// A queue entry that can never succeed must stop being retried. `src/utils/syncQueue.js`
+// reads these to decide when an entry is spent, and `src/components/OfflineIndicator.jsx`
+// shows what that leaves behind.
+// ---------------------------------------------------------------------------
+
+export const MAX_SYNC_ATTEMPTS = 5;
+export const RETRY_BACKOFF_BASE_MS = 2000;
+export const RETRY_BACKOFF_MAX_MS = 60000;
+
 // Sync Queue Operations
 export const addToSyncQueue = async (request) => {
-  const db = await initDB();
-  
+  const data = await toQueueablePayload(request.data);
+
   // Sanitize headers to ensure session tokens/credentials are not persisted to disk
   const safeHeaders = { ...(request.headers || {}) };
   delete safeHeaders.Authorization;
@@ -57,14 +168,23 @@ export const addToSyncQueue = async (request) => {
   delete safeHeaders['x-auth-token'];
   delete safeHeaders['X-Auth-Token'];
 
-  return db.add('syncQueue', {
+  const entry = {
     url: request.url,
     method: request.method,
-    data: request.data,
+    data,
     params: request.params,
     headers: safeHeaders,
     timestamp: Date.now(),
-  });
+    attempts: 0,
+    lastAttemptAt: null,
+    lastError: null,
+    failed: false,
+  };
+
+  assertStorable(entry);
+
+  const db = await initDB();
+  return db.add('syncQueue', entry);
 };
 
 export const getSyncQueue = async () => {
@@ -80,6 +200,27 @@ export const removeSyncQueueItem = async (id) => {
 export const getSyncQueueCount = async () => {
   const db = await initDB();
   return db.count('syncQueue');
+};
+
+/**
+ * Entries that are still waiting to be sent, spent ones left out. The total on disk
+ * stays `getSyncQueueCount()`: a logout destroys a spent entry just as thoroughly as a
+ * pending one, so `confirmLogout` warns about both.
+ */
+export const getPendingSyncQueueCount = async () =>
+  (await getSyncQueue()).filter((entry) => entry.failed !== true).length;
+
+/** Entries that burned MAX_SYNC_ATTEMPTS and were never sent. */
+export const getFailedSyncQueueItems = async () =>
+  (await getSyncQueue()).filter((entry) => entry.failed === true);
+
+/**
+ * Writes an entry back: the replay bookkeeping (attempt count, last error) lives on the
+ * entry itself, so a browser restart resumes the policy rather than resetting it.
+ */
+export const updateSyncQueueItem = async (entry) => {
+  const db = await initDB();
+  return db.put('syncQueue', entry);
 };
 
 /**

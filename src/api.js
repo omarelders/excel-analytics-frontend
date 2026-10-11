@@ -15,12 +15,22 @@ const api = axios.create({
 });
 
 // ========== REQUEST INTERCEPTOR ==========
+// Mutations are the only requests that are held back, because a read that fails offline
+// fails the same way whether it was queued or not.
+const MUTATION_METHODS = ['post', 'put', 'delete', 'patch'];
+
+const QUEUED_OFFLINE_ERROR = {
+  isOffline: true,
+  isQueued: true,
+  message: 'You are offline. Changes have been saved locally and will sync when you are back online.',
+};
+
 api.interceptors.request.use(
   async (config) => {
     // Check for offline status (except for sync requests)
     if (!navigator.onLine && !config._isSyncRequest) {
       // For mutations (POST, PUT, DELETE), queue the request
-      if (['post', 'put', 'delete', 'patch'].includes(config.method?.toLowerCase())) {
+      if (MUTATION_METHODS.includes(config.method?.toLowerCase())) {
         try {
           await addToSyncQueue({
             url: config.url,
@@ -29,19 +39,26 @@ api.interceptors.request.use(
             params: config.params,
             headers: config.headers,
           });
-          
-          // Notify the application that the queue has updated
-          window.dispatchEvent(new Event('sync-queue-updated'));
-          
-          // Reject with a specific offline error that components can handle
+        } catch (e) {
+          // The change was not stored, and the device is offline, so sending it now
+          // cannot succeed either. Falling through used to lose it here while the user
+          // was told it had been saved for later.
+          console.error('Failed to queue offline request:', e);
+
           return Promise.reject({
             isOffline: true,
-            isQueued: true,
-            message: 'You are offline. Changes have been saved locally and will sync when you are back online.',
+            isUnqueued: true,
+            message:
+              `You are offline and this change could not be saved on this device, so it was not sent. ` +
+              `Go back online and try again. (${e?.message ?? 'could not store it offline'})`,
           });
-        } catch (e) {
-          console.error('Failed to queue offline request:', e);
         }
+
+        // Notify the application that the queue has updated
+        window.dispatchEvent(new Event('sync-queue-updated'));
+
+        // Reject with a specific offline error that components can handle
+        return Promise.reject(QUEUED_OFFLINE_ERROR);
       }
     }
 
@@ -69,6 +86,13 @@ api.interceptors.response.use(
     
     // Network error (no response)
     if (!response) {
+      // The request interceptor already knows what happened to a mutation it held
+      // back, and its message is the one the user has to see: "saved locally and
+      // will sync", or "could not be saved, so it was not sent".
+      if (error?.isQueued || error?.isUnqueued) {
+        return Promise.reject(error);
+      }
+
       console.error('[API] Network error - server unreachable');
       // You could dispatch a global notification here
       return Promise.reject({

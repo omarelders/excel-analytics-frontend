@@ -151,9 +151,11 @@ function PaymentProcessingPage() {
       // Refresh the files grid
       fetchPaymentFiles()
     } catch (error) {
+      // `error.message` is what the api interceptor says about an upload it queued
+      // offline, or could not queue: either way it is what the user has to be told.
       setStatus({
         type: 'error',
-        message: error.response?.data?.detail || 'Upload failed. Please try again.',
+        message: error.response?.data?.detail || error.response?.data?.message || error.message || 'Upload failed. Please try again.',
       })
     } finally {
       setLoading(false)
