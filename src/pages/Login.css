@@ -164,6 +164,24 @@
   color: hsl(var(--muted-foreground));
 }
 
+/* Chrome paints an !important autofill background that author background rules
+   can't override; the standard counter is a huge inset box-shadow in the
+   wrapper's own color so the field stays flat once the browser fills it. */
+.login-card .form-group .input-wrapper input:-webkit-autofill,
+.login-card .form-group .input-wrapper input:-webkit-autofill:hover,
+.login-card .form-group .input-wrapper input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px hsl(var(--card)) inset;
+  -webkit-text-fill-color: hsl(var(--foreground));
+  caret-color: hsl(var(--foreground));
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+[data-theme="light"] .login-card .form-group .input-wrapper input:-webkit-autofill,
+[data-theme="light"] .login-card .form-group .input-wrapper input:-webkit-autofill:hover,
+[data-theme="light"] .login-card .form-group .input-wrapper input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px hsl(var(--background)) inset;
+}
+
 .password-toggle {
   background: none;
   border: none;
