@@ -142,7 +142,9 @@
   color: hsl(var(--primary));
 }
 
-.input-wrapper input {
+/* .form-group prefix beats other pages' `.form-group input` rules (e.g.
+   Ideas.css), which would otherwise draw a nested border inside the wrapper. */
+.form-group .input-wrapper input {
   flex: 1;
   min-width: 0;
   background: transparent;
@@ -154,7 +156,7 @@
   padding: 0;
 }
 
-.input-wrapper input::placeholder {
+.form-group .input-wrapper input::placeholder {
   color: hsl(var(--muted-foreground));
 }
 
