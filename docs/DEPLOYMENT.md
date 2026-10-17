@@ -24,7 +24,7 @@ Run, in order:
 
 ```
 npm run build     # vite build + the PWA service worker
-npm test          # 60 checks, 0 expected failures
+npm test          # 68 checks, 0 expected failures
 ```
 
 `node_modules` is required and must be installed on a machine with network access
@@ -135,13 +135,11 @@ retry policy and the replay are all the shipped code.
 
 ---
 
-## 6. `package-lock.json` is one step behind `package.json`
+## 6. `package-lock.json` and `esbuild`
 
 `package.json` declares `esbuild@^0.27.2` in `devDependencies` (it is used directly by
-the test harnesses to mirror `src/`). The lockfile does not have that root edge yet.
+the test harnesses to mirror `src/`). The lockfile's root edge for it is committed on
+this branch, so `npm install` and `npm ci` both see the dependency the first time.
 
-**`npm install` on a machine with network access reconciles it.** Contrary to an earlier
-note in the SDK ledger, `npm ci` does **not** break in the meantime: `npm ci --dry-run`
-succeeds, `npm ls esbuild` resolves `0.27.2` at the root, and
-`node_modules/esbuild` already exists as a transitive dependency of Vite. Do not hand-edit
-`package-lock.json`.
+`esbuild` also already resolves as a transitive dependency of Vite, so an older
+checkout's `node_modules` keeps working even without it.
