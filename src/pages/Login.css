@@ -142,13 +142,17 @@
   color: hsl(var(--primary));
 }
 
-/* .form-group prefix beats other pages' `.form-group input` rules (e.g.
-   Ideas.css), which would otherwise draw a nested border inside the wrapper. */
-.form-group .input-wrapper input {
+/* .login-card prefix stays above other pages' `.form-group input` rules
+   (Ideas.css, ContentCalendar.css) regardless of bundle order. The :focus
+   variant + box-shadow reset kill the ring they draw around the inner input
+   inside the focused wrapper. */
+.login-card .form-group .input-wrapper input,
+.login-card .form-group .input-wrapper input:focus {
   flex: 1;
   min-width: 0;
   background: transparent;
   border: none;
+  box-shadow: none;
   color: hsl(var(--foreground));
   font-size: 0.875rem;
   font-family: inherit;
@@ -156,7 +160,7 @@
   padding: 0;
 }
 
-.form-group .input-wrapper input::placeholder {
+.login-card .form-group .input-wrapper input::placeholder {
   color: hsl(var(--muted-foreground));
 }
 
