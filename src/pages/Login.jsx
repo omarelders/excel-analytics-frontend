@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { LogIn, User, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react'
+import { LogIn, User, Lock, AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react'
 import './Login.css'
 
 export default function Login() {
@@ -42,8 +42,8 @@ export default function Login() {
             <span className="logo-text">Gold</span>
             <span className="logo-text-accent">Road</span>
           </div>
-          <h1 className="login-title">Welcome Back</h1>
-          <p className="login-subtitle">Sign in to your account</p>
+          <h1 className="login-title">Welcome back</h1>
+          <p className="login-subtitle">Sign in to track and analyze your shipments</p>
         </div>
 
         <form onSubmit={handleSubmit} className="login-form">
@@ -55,27 +55,26 @@ export default function Login() {
           )}
 
           <div className="form-group">
-            <label htmlFor="username">
-              <User size={18} />
-              <span>Username</span>
-            </label>
-            <input
-              id="username"
-              type="text"
-              value={formData.username}
-              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-              placeholder="Enter your username"
-              required
-              autoFocus
-            />
+            <label htmlFor="username">Username</label>
+            <div className="input-wrapper">
+              <User size={16} className="input-icon" />
+              <input
+                id="username"
+                type="text"
+                value={formData.username}
+                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                placeholder="Enter your username"
+                required
+                autoFocus
+                autoComplete="username"
+              />
+            </div>
           </div>
 
           <div className="form-group">
-            <label htmlFor="password">
-              <Lock size={18} />
-              <span>Password</span>
-            </label>
-            <div className="password-input-wrapper">
+            <label htmlFor="password">Password</label>
+            <div className="input-wrapper">
+              <Lock size={16} className="input-icon" />
               <input
                 id="password"
                 type={showPassword ? "text" : "password"}
@@ -83,14 +82,16 @@ export default function Login() {
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 placeholder="Enter your password"
                 required
+                autoComplete="current-password"
               />
               <button
                 type="button"
                 className="password-toggle"
                 onClick={() => setShowPassword(!showPassword)}
                 tabIndex="-1"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
           </div>
@@ -103,17 +104,21 @@ export default function Login() {
               onChange={(e) => setFormData({ ...formData, rememberMe: e.target.checked })}
             />
             <label htmlFor="rememberMe">
-              Remember me for 10 years
+              Remember me for 30 days
             </label>
           </div>
 
           <button 
             type="submit" 
-            className="login-btn"
+            className="btn btn-primary btn-large login-btn"
             disabled={loading}
           >
-            <LogIn size={20} />
-            <span>{loading ? 'Signing in...' : 'Sign In'}</span>
+            {loading ? (
+              <Loader2 size={18} className="login-btn-spinner" />
+            ) : (
+              <LogIn size={18} />
+            )}
+            <span>{loading ? 'Signing in...' : 'Sign in'}</span>
           </button>
         </form>
       </div>
