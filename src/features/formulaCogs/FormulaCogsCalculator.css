@@ -176,7 +176,7 @@
 /* Panels & Inputs */
 .fc-controls-grid {
   display: grid;
-  grid-template-columns: 1.3fr 1fr 1fr;
+  grid-template-columns: 1.45fr 1fr 1fr;
   gap: 1rem;
 }
 
@@ -231,6 +231,26 @@
 .fc-field label {
   font-size: 0.75rem;
   font-weight: 500;
+  color: hsl(var(--muted-foreground));
+}
+
+.fc-inline-input-group {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.fc-inline-input-group input {
+  flex: 1;
+  min-width: 0;
+}
+
+.fc-inline-input-group .fc-unit-select {
+  width: 64px;
+  flex-shrink: 0;
+}
+
+.fc-field-hint {
+  font-size: 0.72rem;
   color: hsl(var(--muted-foreground));
 }
 
@@ -320,7 +340,7 @@
 
 .fc-add-material-form {
   display: grid;
-  grid-template-columns: 2fr 0.8fr 0.6fr 0.9fr auto;
+  grid-template-columns: 2fr 0.7fr 0.6fr 0.75fr 0.85fr auto;
   gap: 0.75rem;
   align-items: end;
   padding: 0.875rem;
@@ -355,19 +375,21 @@
   --label-2: 'Material';
   --label-3: '% (w/w)';
   --label-4: 'Trace';
-  --label-5: 'Qty / Piece';
-  --label-6: 'Unit Cost';
-  --label-7: 'Row Cost';
-  --label-8: 'Remove';
+  --label-5: 'Scale Wt (g)';
+  --label-6: 'Volume (ml)';
+  --label-7: 'Cost / g';
+  --label-8: 'Row Cost';
+  --label-9: 'Remove';
 }
 
 .fc-inventory-table {
   --label-1: 'Material';
   --label-2: 'Pack Qty';
-  --label-3: 'Unit';
-  --label-4: 'Pack Price (EGP)';
-  --label-5: 'Cost / Unit';
-  --label-6: 'Remove';
+  --label-3: 'Buy Unit';
+  --label-4: 'Density (g/ml)';
+  --label-5: 'Pack Price (EGP)';
+  --label-6: 'Cost / g (w/w)';
+  --label-7: 'Remove';
 }
 
 .fc-table thead {
@@ -397,6 +419,12 @@
   border-bottom: none;
 }
 
+.fc-tfoot-row td {
+  border-top: 2px solid hsl(var(--border));
+  background: hsl(var(--muted) / 0.45);
+  padding: 0.65rem 0.75rem;
+}
+
 .fc-row-trace {
   background: hsl(var(--muted) / 0.25);
 }
@@ -409,7 +437,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
-  min-width: 210px;
+  min-width: 200px;
 }
 
 .fc-row-note {
@@ -418,12 +446,12 @@
 }
 
 .fc-num-input {
-  width: 92px;
+  width: 90px;
   font-variant-numeric: tabular-nums;
 }
 
 .fc-name-input {
-  min-width: 220px;
+  min-width: 210px;
 }
 
 .fc-trace-toggle {
@@ -448,7 +476,7 @@
 }
 
 .fc-batch-sub {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: hsl(var(--muted-foreground));
 }
 
@@ -467,17 +495,19 @@
 }
 
 /* Container-responsive stacked layout for narrow viewports */
-@container (width < 680px) {
+@container (width < 720px) {
   .fc-table,
   .fc-table thead,
   .fc-table tbody,
+  .fc-table tfoot,
   .fc-table tr,
   .fc-table th,
   .fc-table td {
     display: block;
   }
 
-  .fc-table thead {
+  .fc-table thead,
+  .fc-table tfoot {
     display: none;
   }
 
@@ -510,6 +540,7 @@
   .fc-table td:nth-child(6)::before { content: var(--label-6); }
   .fc-table td:nth-child(7)::before { content: var(--label-7); }
   .fc-table td:nth-child(8)::before { content: var(--label-8); }
+  .fc-table td:nth-child(9)::before { content: var(--label-9); }
 
   .fc-material-cell,
   .fc-name-input,

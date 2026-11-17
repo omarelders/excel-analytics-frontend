@@ -13,7 +13,13 @@ import {
   Search,
 } from 'lucide-react'
 import { useFormulaCogsState } from './useFormulaCogsState'
-import { calculateFormulaBreakdown, computeCostPerUnit, formatEgp, toNonNegNum } from './cogsMath'
+import {
+  calculateFormulaBreakdown,
+  computeMaterialUnitCosts,
+  formatEgp,
+  toNonNegNum,
+  toPositiveDensity,
+} from './cogsMath'
 import './FormulaCogsCalculator.css'
 
 const PRODUCT_ORDER = ['body_butter', 'body_splash']
@@ -49,6 +55,7 @@ function FormulaCogsCalculator() {
     name: '',
     packQty: '100',
     unit: 'g',
+    density: '1.00',
     packPrice: '',
   })
 
@@ -124,23 +131,24 @@ function FormulaCogsCalculator() {
       name: newMaterial.name,
       packQty: newMaterial.packQty,
       unit: newMaterial.unit,
+      density: newMaterial.density,
       packPrice: newMaterial.packPrice,
     })
     if (createdId) {
       setSelectedAddMaterialId(createdId)
-      setNewMaterial({ name: '', packQty: '100', unit: 'g', packPrice: '' })
+      setNewMaterial({ name: '', packQty: '100', unit: 'g', density: '1.00', packPrice: '' })
     }
   }
 
   const handleReset = () => {
-    if (window.confirm('Reset all material prices and both formulas back to their verified defaults?')) {
+    if (window.confirm('Reset all material prices, densities, and both formulas back to defaults?')) {
       resetToDefaults()
     }
   }
 
   const pctDiff = breakdown.activePctSum - 100
   const costPer100g =
-    breakdown.pieceWeight > 0 ? (breakdown.formulaCostPerPiece / breakdown.pieceWeight) * 100 : 0
+    breakdown.baseMassGrams > 0 ? (breakdown.formulaCostPerPiece / breakdown.baseMassGrams) * 100 : 0
 
   return (
     <div className="fc-page">
@@ -148,7 +156,7 @@ function FormulaCogsCalculator() {
         <div>
           <h1 className="fc-title">Formula Pricing &amp; COGS</h1>
           <p className="fc-subtitle">
-            Adjust ingredient percentages, piece weight, raw material prices, packaging, and stickers in EGP.
+            Density-calibrated % w/w formulation calculator — Body Butter sold in g, Body Splash sold in ml.
           </p>
         </div>
 
@@ -178,6 +186,7 @@ function FormulaCogsCalculator() {
           {PRODUCT_ORDER.map((productId, idx) => {
             const prod = state.products[productId]
             const isSelected = activeProduct.id === productId
+            const unitSuffix = prod.sellUnit === 'ml' ? 'ml' : 'g'
             return (
               <button
                 key={productId}
@@ -191,7 +200,10 @@ function FormulaCogsCalculator() {
                 onKeyDown={(e) => handleTabKeyDown(e, idx)}
               >
                 <span>{prod.name}</span>
-                <span className="fc-tab-meta">{toNonNegNum(prod.pieceWeight)}g</span>
+                <span className="fc-tab-meta">
+                  {toNonNegNum(prod.pieceWeight)}
+                  {unitSuffix}
+                </span>
               </button>
             )
           })}
@@ -213,7 +225,9 @@ function FormulaCogsCalculator() {
           <span className="fc-kpi-label">Formula Cost / Piece</span>
           <strong className="fc-kpi-value">{formatEgp(breakdown.formulaCostPerPiece)}</strong>
           <span className="fc-kpi-sub">
-            {breakdown.pieceWeight}g piece ({costPer100g.toFixed(2)} EGP / 100g)
+            {breakdown.sellUnit === 'ml'
+              ? `${breakdown.pieceSize}ml bottle = ${breakdown.baseMassGrams.toFixed(1)}g scale (${breakdown.mixDensity.toFixed(3)} g/ml)`
+              : `${breakdown.pieceSize}g jar ≈ ${breakdown.baseVolumeMl.toFixed(1)}ml (${costPer100g.toFixed(2)} EGP / 100g)`}
           </span>
         </div>
 
@@ -223,7 +237,7 @@ function FormulaCogsCalculator() {
           </span>
           <strong className="fc-kpi-value">{formatEgp(breakdown.batchTotalCogs)}</strong>
           <span className="fc-kpi-sub">
-            Batch bulk: {breakdown.batchWeight.toFixed(0)}g ({formatEgp(breakdown.batchFormulaCost)} formula)
+            Scale: {breakdown.batchTotalMassGrams.toFixed(1)}g · Vol: {breakdown.batchTotalVolumeMl.toFixed(1)}ml
           </span>
         </div>
 
@@ -251,21 +265,39 @@ function FormulaCogsCalculator() {
       {/* Weight, Batch, Packaging & Stickers Controls */}
       <section className="fc-controls-grid" aria-label="Piece settings and extra costs">
         <div className="fc-panel fc-config-card">
-          <h2 className="fc-panel-title">Piece &amp; Batch Size</h2>
+          <h2 className="fc-panel-title">Piece Size &amp; Batch</h2>
           <div className="fc-field-row">
             <div className="fc-field">
-              <label htmlFor="fc-piece-weight">Final Piece Weight (g / ml)</label>
-              <input
-                id="fc-piece-weight"
-                type="number"
-                min="0"
-                step="any"
-                value={activeProduct.pieceWeight}
-                onChange={handleNumChange((val) => updateProductField(activeProduct.id, 'pieceWeight', val))}
-                onBlur={handleNumBlur(activeProduct.pieceWeight, (val) =>
-                  updateProductField(activeProduct.id, 'pieceWeight', val),
-                )}
-              />
+              <label htmlFor="fc-piece-weight">
+                {breakdown.sellUnit === 'ml' ? 'Bottle Fill Volume (ml)' : 'Final Piece Weight (g)'}
+              </label>
+              <div className="fc-inline-input-group">
+                <input
+                  id="fc-piece-weight"
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={activeProduct.pieceWeight}
+                  onChange={handleNumChange((val) => updateProductField(activeProduct.id, 'pieceWeight', val))}
+                  onBlur={handleNumBlur(activeProduct.pieceWeight, (val) =>
+                    updateProductField(activeProduct.id, 'pieceWeight', val),
+                  )}
+                />
+                <select
+                  aria-label="Piece measurement unit"
+                  className="fc-unit-select"
+                  value={breakdown.sellUnit}
+                  onChange={(e) => updateProductField(activeProduct.id, 'sellUnit', e.target.value)}
+                >
+                  <option value="g">g</option>
+                  <option value="ml">ml</option>
+                </select>
+              </div>
+              <span className="fc-field-hint">
+                {breakdown.sellUnit === 'ml'
+                  ? `Weigh ${breakdown.baseMassGrams.toFixed(2)} g per bottle (${breakdown.mixDensity.toFixed(3)} g/ml)`
+                  : `Occupies ≈ ${breakdown.baseVolumeMl.toFixed(1)} ml (${breakdown.mixDensity.toFixed(3)} g/ml)`}
+              </span>
             </div>
 
             <div className="fc-field">
@@ -373,9 +405,9 @@ function FormulaCogsCalculator() {
         <section id="fc-inventory-panel" className="fc-panel fc-inventory-panel" aria-label="Material inventory">
           <div className="fc-section-header">
             <div>
-              <h2 className="fc-panel-title">Raw Material Prices (Shared Inventory)</h2>
+              <h2 className="fc-panel-title">Raw Material Prices &amp; Densities (Shared Inventory)</h2>
               <p className="fc-muted-text">
-                Editing Pack Price or Pack Qty updates unit costs across both Body Butter and Body Splash.
+                Materials bought in ml use Density (g/ml) to convert EGP/ml into exact EGP/g for % w/w costing.
               </p>
             </div>
             <search className="fc-search-wrap">
@@ -418,7 +450,7 @@ function FormulaCogsCalculator() {
               />
             </div>
             <div className="fc-field">
-              <label htmlFor="fc-new-mat-unit">Unit</label>
+              <label htmlFor="fc-new-mat-unit">Buy Unit</label>
               <select
                 id="fc-new-mat-unit"
                 value={newMaterial.unit}
@@ -427,6 +459,18 @@ function FormulaCogsCalculator() {
                 <option value="g">g</option>
                 <option value="ml">ml</option>
               </select>
+            </div>
+            <div className="fc-field">
+              <label htmlFor="fc-new-mat-density">Density (g/ml)</label>
+              <input
+                id="fc-new-mat-density"
+                type="number"
+                min="0.01"
+                step="any"
+                required
+                value={newMaterial.density}
+                onChange={(e) => setNewMaterial((prev) => ({ ...prev, density: e.target.value }))}
+              />
             </div>
             <div className="fc-field">
               <label htmlFor="fc-new-mat-price">Pack Price (EGP)</label>
@@ -454,21 +498,22 @@ function FormulaCogsCalculator() {
             className="fc-table-wrapper fc-inventory-table-wrap"
           >
             <table className="fc-table fc-inventory-table">
-              <caption className="visually-hidden">Editable raw material pack prices and unit costs</caption>
+              <caption className="visually-hidden">Editable raw material pack prices, densities, and unit costs</caption>
               <thead>
                 <tr>
                   <th scope="col">Material</th>
                   <th scope="col">Pack Qty</th>
-                  <th scope="col">Unit</th>
+                  <th scope="col">Buy Unit</th>
+                  <th scope="col">Density (g/ml)</th>
                   <th scope="col">Pack Price (EGP)</th>
-                  <th scope="col">Cost / Unit</th>
+                  <th scope="col">Cost / g (w/w)</th>
                   <th scope="col">Remove</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredMaterials.map((mat) => {
                   const isUsed = usedMaterialIds.has(mat.id)
-                  const unitCost = computeCostPerUnit(mat.packPrice, mat.packQty)
+                  const { costPerPackUnit, costPerGram } = computeMaterialUnitCosts(mat)
                   return (
                     <tr key={mat.id}>
                       <td>
@@ -499,13 +544,28 @@ function FormulaCogsCalculator() {
                       <td>
                         <select
                           className="fc-cell-select"
-                          aria-label={`Unit for ${mat.name}`}
+                          aria-label={`Purchase unit for ${mat.name}`}
                           value={mat.unit}
                           onChange={(e) => updateMaterial(mat.id, { unit: e.target.value })}
                         >
                           <option value="g">g</option>
                           <option value="ml">ml</option>
                         </select>
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          min="0.01"
+                          step="any"
+                          className="fc-cell-input fc-num-input"
+                          aria-label={`Density in g/ml for ${mat.name}`}
+                          value={mat.density ?? 1.0}
+                          onChange={handleNumChange((val) => updateMaterial(mat.id, { density: val }))}
+                          onBlur={() => {
+                            const clean = toPositiveDensity(mat.density, 1.0)
+                            updateMaterial(mat.id, { density: clean })
+                          }}
+                        />
                       </td>
                       <td>
                         <input
@@ -522,7 +582,10 @@ function FormulaCogsCalculator() {
                         />
                       </td>
                       <td className="fc-mono">
-                        {unitCost.toFixed(3)} / {mat.unit}
+                        <div>{costPerGram.toFixed(3)} / g</div>
+                        {mat.unit === 'ml' && (
+                          <div className="fc-batch-sub">({costPerPackUnit.toFixed(3)} / ml)</div>
+                        )}
                       </td>
                       <td>
                         {isUsed ? (
@@ -601,11 +664,14 @@ function FormulaCogsCalculator() {
               value={defaultAddMaterialId}
               onChange={(e) => setSelectedAddMaterialId(e.target.value)}
             >
-              {state.materials.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name} ({computeCostPerUnit(m.packPrice, m.packQty).toFixed(3)}/{m.unit})
-                </option>
-              ))}
+              {state.materials.map((m) => {
+                const { costPerGram } = computeMaterialUnitCosts(m)
+                return (
+                  <option key={m.id} value={m.id}>
+                    {m.name} ({costPerGram.toFixed(3)} EGP/g)
+                  </option>
+                )
+              })}
             </select>
 
             <button type="button" className="btn btn-primary btn-sm" onClick={handleAddRow}>
@@ -618,7 +684,7 @@ function FormulaCogsCalculator() {
         <div tabIndex={0} role="region" aria-labelledby="fc-formula-title" className="fc-table-wrapper">
           <table className="fc-table fc-formula-table">
             <caption className="visually-hidden">
-              {activeProduct.name} ingredient percentages, scaled weights, and unit costs
+              {activeProduct.name} ingredient percentages, scale weights in grams, volumes in ml, and costs
             </caption>
             <thead>
               <tr>
@@ -626,8 +692,9 @@ function FormulaCogsCalculator() {
                 <th scope="col">Material</th>
                 <th scope="col">% (w/w)</th>
                 <th scope="col">Trace</th>
-                <th scope="col">Qty / Piece</th>
-                <th scope="col">Unit Cost</th>
+                <th scope="col">Scale Wt (g)</th>
+                <th scope="col">Volume (ml)</th>
+                <th scope="col">Cost / g</th>
                 <th scope="col">Row Cost</th>
                 <th scope="col">Remove</th>
               </tr>
@@ -635,7 +702,7 @@ function FormulaCogsCalculator() {
             <tbody>
               {breakdown.rows.map((row) => {
                 const matName = row.material?.name || 'Missing material'
-                const unitLabel = row.material?.unit || 'g'
+                const boughtInMl = row.material?.unit === 'ml'
                 return (
                   <tr key={row.rowId} className={row.isTrace ? 'fc-row-trace' : ''}>
                     <td>
@@ -703,17 +770,24 @@ function FormulaCogsCalculator() {
                       </label>
                     </td>
                     <td className="fc-mono">
-                      <div>
-                        {row.qtyPerPiece.toFixed(2)} {unitLabel}
-                      </div>
+                      <div>{row.weightGramsPerPiece.toFixed(2)} g</div>
                       {breakdown.unitsInBatch > 1 && (
-                        <div className="fc-batch-sub">
-                          Batch: {row.batchQty.toFixed(2)} {unitLabel}
-                        </div>
+                        <div className="fc-batch-sub">Batch: {row.batchWeightGrams.toFixed(2)} g</div>
                       )}
                     </td>
                     <td className="fc-mono">
-                      {row.unitCost.toFixed(3)} / {unitLabel}
+                      <div>{row.volumeMlPerPiece.toFixed(2)} ml</div>
+                      {breakdown.unitsInBatch > 1 && (
+                        <div className="fc-batch-sub">Batch: {row.batchVolumeMl.toFixed(2)} ml</div>
+                      )}
+                    </td>
+                    <td className="fc-mono">
+                      <div>{row.costPerGram.toFixed(3)} / g</div>
+                      {boughtInMl && (
+                        <div className="fc-batch-sub">
+                          {row.costPerMl.toFixed(3)}/ml @ {row.density}g/ml
+                        </div>
+                      )}
                     </td>
                     <td className="fc-mono fc-row-cost">{row.rowCostPerPiece.toFixed(2)} EGP</td>
                     <td>
@@ -730,6 +804,33 @@ function FormulaCogsCalculator() {
                 )
               })}
             </tbody>
+            <tfoot>
+              <tr className="fc-tfoot-row">
+                <td colSpan={2}>
+                  <strong>Piece Totals</strong>
+                </td>
+                <td className="fc-mono">
+                  <strong>{breakdown.activePctSum.toFixed(2)}%</strong>
+                  {breakdown.tracePctSum > 0 && (
+                    <div className="fc-batch-sub">+{breakdown.tracePctSum.toFixed(2)}% trace</div>
+                  )}
+                </td>
+                <td />
+                <td className="fc-mono">
+                  <strong>{breakdown.totalMassGramsPerPiece.toFixed(2)} g</strong>
+                </td>
+                <td className="fc-mono">
+                  <strong>{breakdown.totalVolumeMlPerPiece.toFixed(2)} ml</strong>
+                </td>
+                <td className="fc-mono">
+                  <span className="fc-batch-sub">ρ = {breakdown.mixDensity.toFixed(3)} g/ml</span>
+                </td>
+                <td className="fc-mono fc-gold-text">
+                  <strong>{breakdown.formulaCostPerPiece.toFixed(2)} EGP</strong>
+                </td>
+                <td />
+              </tr>
+            </tfoot>
           </table>
         </div>
       </section>

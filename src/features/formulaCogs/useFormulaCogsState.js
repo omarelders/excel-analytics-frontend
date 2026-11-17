@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
-import { STORAGE_KEY, createInitialState } from './formulaDefaults'
-import { computeCostPerUnit, toNonNegNum } from './cogsMath'
+import { STORAGE_KEY, DEFAULT_MATERIALS, createInitialState } from './formulaDefaults'
+import { computeCostPerUnit, toNonNegNum, toPositiveDensity } from './cogsMath'
 
 function loadPersistedState() {
   const fallback = createInitialState()
+  const defaultMatById = new Map(DEFAULT_MATERIALS.map((m) => [m.id, m]))
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return fallback
@@ -16,12 +17,30 @@ function loadPersistedState() {
     ) {
       return fallback
     }
+    const hydratedMaterials = parsed.materials.map((m) => {
+      const def = defaultMatById.get(m.id)
+      const density = toPositiveDensity(m.density ?? def?.density, 1.0)
+      return {
+        ...def,
+        ...m,
+        density,
+        costPerUnit: computeCostPerUnit(m.packPrice, m.packQty),
+      }
+    })
     return {
       activeProductId: parsed.activeProductId === 'body_splash' ? 'body_splash' : 'body_butter',
-      materials: parsed.materials,
+      materials: hydratedMaterials,
       products: {
-        body_butter: { ...fallback.products.body_butter, ...parsed.products.body_butter },
-        body_splash: { ...fallback.products.body_splash, ...parsed.products.body_splash },
+        body_butter: {
+          ...fallback.products.body_butter,
+          ...parsed.products.body_butter,
+          sellUnit: parsed.products.body_butter.sellUnit || 'g',
+        },
+        body_splash: {
+          ...fallback.products.body_splash,
+          ...parsed.products.body_splash,
+          sellUnit: parsed.products.body_splash.sellUnit || 'ml',
+        },
       },
     }
   } catch {
@@ -157,12 +176,13 @@ export function useFormulaCogsState() {
   }, [])
 
   const addMaterial = useCallback(
-    ({ name, packQty, unit, packPrice }) => {
+    ({ name, packQty, unit, density, packPrice }) => {
       const trimmedName = String(name || '').trim()
       if (!trimmedName) return null
       const cleanQty = toNonNegNum(packQty) || 100
       const cleanPrice = toNonNegNum(packPrice)
       const cleanUnit = unit === 'ml' ? 'ml' : 'g'
+      const cleanDensity = toPositiveDensity(density, 1.0)
       const existingIds = new Set(state.materials.map((m) => m.id))
       const createdId = makeSlugId(trimmedName, existingIds)
       const created = {
@@ -170,6 +190,7 @@ export function useFormulaCogsState() {
         name: trimmedName,
         packQty: cleanQty,
         unit: cleanUnit,
+        density: cleanDensity,
         packPrice: cleanPrice,
         costPerUnit: computeCostPerUnit(cleanPrice, cleanQty),
       }

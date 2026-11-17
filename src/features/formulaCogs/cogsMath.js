@@ -5,6 +5,12 @@ export function toNonNegNum(value) {
   return parsed
 }
 
+export function toPositiveDensity(value, fallback = 1.0) {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback
+  return parsed
+}
+
 export function computeCostPerUnit(packPrice, packQty) {
   const price = toNonNegNum(packPrice)
   const qty = toNonNegNum(packQty)
@@ -12,8 +18,45 @@ export function computeCostPerUnit(packPrice, packQty) {
   return price / qty
 }
 
+/**
+ * Converts a material's pack price into both EGP/g and EGP/ml using density (g/ml).
+ * - If bought in 'g':  costPerGram = packPrice / packQty; costPerMl = costPerGram * density
+ * - If bought in 'ml': costPerMl   = packPrice / packQty; costPerGram = costPerMl / density
+ *   (e.g. Ethanol @ 0.10 EGP/ml and 0.79 g/ml -> 0.1266 EGP/g, since 1g occupies 1.2658ml)
+ */
+export function computeMaterialUnitCosts(material) {
+  if (!material) {
+    return { costPerPackUnit: 0, costPerGram: 0, costPerMl: 0, density: 1.0 }
+  }
+  const density = toPositiveDensity(material.density, 1.0)
+  const costPerPackUnit = computeCostPerUnit(material.packPrice, material.packQty)
+  if (material.unit === 'ml') {
+    return {
+      costPerPackUnit,
+      costPerMl: costPerPackUnit,
+      costPerGram: costPerPackUnit / density,
+      density,
+    }
+  }
+  return {
+    costPerPackUnit,
+    costPerGram: costPerPackUnit,
+    costPerMl: costPerPackUnit * density,
+    density,
+  }
+}
+
+/**
+ * Computes full COGS breakdown for a product whose formula is defined in % w/w.
+ * - When sellUnit === 'g' (Body Butter): pieceSize is target mass in grams (W_base = pieceSize).
+ * - When sellUnit === 'ml' (Body Splash): pieceSize is target bottle volume in ml (V_base = pieceSize).
+ *   Because the formula is % w/w, 100g of active formula occupies sum(pct_i / density_i) ml,
+ *   giving mixture density rho_mix = activePctSum / sum(pct_i / density_i) g/ml.
+ *   The mass needed to fill V_base ml is W_base = V_base * rho_mix grams.
+ */
 export function calculateFormulaBreakdown(product, materialsById) {
-  const pieceWeight = toNonNegNum(product?.pieceWeight)
+  const sellUnit = product?.sellUnit === 'ml' ? 'ml' : 'g'
+  const pieceSize = toNonNegNum(product?.pieceWeight)
   const unitsInBatch = Math.max(1, Math.round(toNonNegNum(product?.unitsInBatch) || 1))
   const packagingCost = toNonNegNum(product?.packagingCost)
   const stickersCost = toNonNegNum(product?.stickersCost)
@@ -21,32 +64,71 @@ export function calculateFormulaBreakdown(product, materialsById) {
 
   let activePctSum = 0
   let tracePctSum = 0
-  let formulaCostPerPiece = 0
+  let activeSpecificVolSum = 0
 
-  const rows = (product?.rows || []).map((row) => {
-    const material = materialsById.get(row.materialId) || null
+  const rawRows = product?.rows || []
+  for (const row of rawRows) {
     const pct = toNonNegNum(row.pct)
-    const unitCost = material ? computeCostPerUnit(material.packPrice, material.packQty) : 0
-    const qtyPerPiece = pieceWeight * (pct / 100)
-    const rowCostPerPiece = qtyPerPiece * unitCost
-    const batchQty = qtyPerPiece * unitsInBatch
-    const batchRowCost = rowCostPerPiece * unitsInBatch
-
+    const material = materialsById.get(row.materialId) || null
+    const density = toPositiveDensity(material?.density, 1.0)
     if (row.isTrace) {
       tracePctSum += pct
     } else {
       activePctSum += pct
+      activeSpecificVolSum += pct / density
     }
+  }
+
+  // Mixture specific gravity (g/ml) of the active formulation
+  const mixDensity =
+    activePctSum > 0 && activeSpecificVolSum > 0 ? activePctSum / activeSpecificVolSum : 1.0
+
+  // Base 100% w/w mass (in grams) corresponding to one finished piece:
+  // - If sold in 'g':  pieceSize is already in grams.
+  // - If sold in 'ml': pieceSize is bottle volume in ml, so base mass in grams = pieceSize * mixDensity.
+  const baseMassGrams = sellUnit === 'ml' ? pieceSize * mixDensity : pieceSize
+  const baseVolumeMl = sellUnit === 'ml' ? pieceSize : mixDensity > 0 ? pieceSize / mixDensity : pieceSize
+
+  let formulaCostPerPiece = 0
+  let totalMassGramsPerPiece = 0
+  let totalVolumeMlPerPiece = 0
+
+  const rows = rawRows.map((row) => {
+    const material = materialsById.get(row.materialId) || null
+    const pct = toNonNegNum(row.pct)
+    const { costPerPackUnit, costPerGram, costPerMl, density } = computeMaterialUnitCosts(material)
+
+    // % w/w always defines mass in grams on the scale:
+    const weightGramsPerPiece = baseMassGrams * (pct / 100)
+    // Volume occupied/drawn for this ingredient (ml = g / (g/ml)):
+    const volumeMlPerPiece = weightGramsPerPiece / density
+
+    // Cost is identical whether computed as grams * costPerGram or ml * costPerMl:
+    const rowCostPerPiece = weightGramsPerPiece * costPerGram
+
+    const batchWeightGrams = weightGramsPerPiece * unitsInBatch
+    const batchVolumeMl = volumeMlPerPiece * unitsInBatch
+    const batchRowCost = rowCostPerPiece * unitsInBatch
+
     formulaCostPerPiece += rowCostPerPiece
+    totalMassGramsPerPiece += weightGramsPerPiece
+    totalVolumeMlPerPiece += volumeMlPerPiece
 
     return {
       ...row,
       material,
       pctNum: pct,
-      unitCost,
-      qtyPerPiece,
+      density,
+      unitCost: costPerPackUnit,
+      costPerGram,
+      costPerMl,
+      qtyPerPiece: weightGramsPerPiece,
+      weightGramsPerPiece,
+      volumeMlPerPiece,
       rowCostPerPiece,
-      batchQty,
+      batchQty: batchWeightGrams,
+      batchWeightGrams,
+      batchVolumeMl,
       batchRowCost,
     }
   })
@@ -54,7 +136,11 @@ export function calculateFormulaBreakdown(product, materialsById) {
   const totalPctSum = activePctSum + tracePctSum
   const isPctBalanced = Math.abs(activePctSum - 100) < 0.005
   const totalUnitCogs = formulaCostPerPiece + packagingCost + stickersCost
-  const batchWeight = pieceWeight * unitsInBatch
+
+  const batchWeight = baseMassGrams * unitsInBatch
+  const batchVolume = baseVolumeMl * unitsInBatch
+  const batchTotalMassGrams = totalMassGramsPerPiece * unitsInBatch
+  const batchTotalVolumeMl = totalVolumeMlPerPiece * unitsInBatch
   const batchFormulaCost = formulaCostPerPiece * unitsInBatch
   const batchTotalCogs = totalUnitCogs * unitsInBatch
 
@@ -64,7 +150,14 @@ export function calculateFormulaBreakdown(product, materialsById) {
 
   return {
     rows,
-    pieceWeight,
+    sellUnit,
+    pieceWeight: pieceSize,
+    pieceSize,
+    mixDensity,
+    baseMassGrams,
+    baseVolumeMl,
+    totalMassGramsPerPiece,
+    totalVolumeMlPerPiece,
     unitsInBatch,
     activePctSum,
     tracePctSum,
@@ -75,6 +168,9 @@ export function calculateFormulaBreakdown(product, materialsById) {
     stickersCost,
     totalUnitCogs,
     batchWeight,
+    batchVolume,
+    batchTotalMassGrams,
+    batchTotalVolumeMl,
     batchFormulaCost,
     batchTotalCogs,
     sellingPrice,
