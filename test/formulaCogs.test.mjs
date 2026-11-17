@@ -132,3 +132,47 @@ test('zero packQty, invalid density, and missing material are guarded without Na
   assert.equal(res.totalUnitCogs, 0)
   assert.equal(res.isPctBalanced, false)
 })
+
+test('measuredFillWeight overrides computed mix density when set, and falls back when null or zero', () => {
+  const state = createInitialState()
+  const materialsById = new Map(state.materials.map((m) => [m.id, m]))
+
+  assert.equal(state.products.body_butter.measuredFillWeight, null)
+  assert.equal(state.products.body_splash.measuredFillWeight, null)
+
+  // Default 200 ml splash without measuredFillWeight uses computed mixDensity (~0.8934 g/ml)
+  const autoSplash = calculateFormulaBreakdown(state.products.body_splash, materialsById)
+  assert.equal(autoSplash.isMeasuredFillActive, false)
+  assert.ok(Math.abs(autoSplash.baseMassGrams - autoSplash.theoreticalMassGrams) < 1e-9)
+
+  // With measuredFillWeight = 183 g for a 200 ml bottle (e.g. accounting for ethanol/water contraction):
+  const measuredSplash = calculateFormulaBreakdown(
+    { ...state.products.body_splash, measuredFillWeight: 183 },
+    materialsById,
+  )
+  assert.equal(measuredSplash.isMeasuredFillActive, true)
+  assert.equal(measuredSplash.baseMassGrams, 183)
+  assert.ok(Math.abs(measuredSplash.effectiveDensity - 183 / 200) < 1e-9)
+  // Ethanol (45% w/w) scales from 183 g -> 82.35 g
+  const ethRow = measuredSplash.rows.find((r) => r.materialId === 'alc_mawardy_5l')
+  assert.ok(Math.abs(ethRow.weightGramsPerPiece - 183 * 0.45) < 1e-9)
+  assert.ok(Math.abs(ethRow.rowCostPerPiece - (183 * 0.45) * (0.1 / 0.79)) < 1e-9)
+
+  // Clearing measuredFillWeight (null, '', or 0) reverts cleanly to theoretical mix density
+  for (const emptyVal of [null, '', 0]) {
+    const reverted = calculateFormulaBreakdown(
+      { ...state.products.body_splash, measuredFillWeight: emptyVal },
+      materialsById,
+    )
+    assert.equal(reverted.isMeasuredFillActive, false)
+    assert.ok(Math.abs(reverted.baseMassGrams - autoSplash.baseMassGrams) < 1e-9)
+  }
+
+  // On gram-sold Body Butter, measuredFillWeight is ignored
+  const butter = calculateFormulaBreakdown(
+    { ...state.products.body_butter, measuredFillWeight: 999 },
+    materialsById,
+  )
+  assert.equal(butter.isMeasuredFillActive, false)
+  assert.equal(butter.baseMassGrams, 250)
+})

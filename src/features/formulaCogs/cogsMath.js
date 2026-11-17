@@ -85,8 +85,20 @@ export function calculateFormulaBreakdown(product, materialsById) {
 
   // Base 100% w/w mass (in grams) corresponding to one finished piece:
   // - If sold in 'g':  pieceSize is already in grams.
-  // - If sold in 'ml': pieceSize is bottle volume in ml, so base mass in grams = pieceSize * mixDensity.
-  const baseMassGrams = sellUnit === 'ml' ? pieceSize * mixDensity : pieceSize
+  // - If sold in 'ml': if measuredFillWeight (g per bottle) is provided, use it directly
+  //   (capturing real contraction); otherwise fall back to pieceSize * mixDensity.
+  const measuredFillWeightRaw = product?.measuredFillWeight
+  const measuredFillWeightNum = toNonNegNum(measuredFillWeightRaw)
+  const isMeasuredFillActive =
+    sellUnit === 'ml' &&
+    measuredFillWeightRaw !== null &&
+    measuredFillWeightRaw !== '' &&
+    measuredFillWeightNum > 0
+
+  const theoreticalMassGrams = sellUnit === 'ml' ? pieceSize * mixDensity : pieceSize
+  const baseMassGrams = isMeasuredFillActive ? measuredFillWeightNum : theoreticalMassGrams
+  const effectiveDensity =
+    sellUnit === 'ml' && pieceSize > 0 ? baseMassGrams / pieceSize : mixDensity
   const baseVolumeMl = sellUnit === 'ml' ? pieceSize : mixDensity > 0 ? pieceSize / mixDensity : pieceSize
 
   let formulaCostPerPiece = 0
@@ -154,6 +166,9 @@ export function calculateFormulaBreakdown(product, materialsById) {
     pieceWeight: pieceSize,
     pieceSize,
     mixDensity,
+    effectiveDensity,
+    isMeasuredFillActive,
+    theoreticalMassGrams,
     baseMassGrams,
     baseVolumeMl,
     totalMassGramsPerPiece,

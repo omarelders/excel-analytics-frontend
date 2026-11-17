@@ -35,11 +35,13 @@ function loadPersistedState() {
           ...fallback.products.body_butter,
           ...parsed.products.body_butter,
           sellUnit: parsed.products.body_butter.sellUnit || 'g',
+          measuredFillWeight: parsed.products.body_butter.measuredFillWeight ?? null,
         },
         body_splash: {
           ...fallback.products.body_splash,
           ...parsed.products.body_splash,
           sellUnit: parsed.products.body_splash.sellUnit || 'ml',
+          measuredFillWeight: parsed.products.body_splash.measuredFillWeight ?? null,
         },
       },
     }

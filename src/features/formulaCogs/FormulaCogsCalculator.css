@@ -222,8 +222,40 @@
   gap: 0.75rem;
 }
 
-.fc-field-row-2 {
+.fc-field-row-2,
+.fc-field-row-ml {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.fc-clear-measured-btn {
+  min-block-size: 38px;
+  flex-shrink: 0;
+}
+
+.fc-muted-dash {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.9375rem;
+}
+
+.fc-show-volumes-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: calc(var(--radius) - 2px);
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  min-block-size: 36px;
+}
+
+.fc-show-volumes-toggle input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--fc-gold);
 }
 
 .fc-field {
@@ -486,13 +518,17 @@
 
 .fc-add-material-form {
   display: grid;
-  grid-template-columns: 2fr 0.7fr 0.8fr 0.75fr 0.85fr auto;
+  grid-template-columns: 2fr 0.7fr 0.8fr 0.85fr auto;
   gap: 0.75rem;
   align-items: end;
   padding: 0.875rem;
   border-radius: calc(var(--radius) - 2px);
   background: hsl(var(--background));
   border: 1px solid hsl(var(--border));
+}
+
+.fc-add-material-form.fc-with-density {
+  grid-template-columns: 2fr 0.7fr 0.8fr 0.75fr 0.85fr auto;
 }
 
 .fc-add-mat-submit {
@@ -518,6 +554,12 @@
   --label-3: '% (w/w)';
   --label-4: 'Trace';
   --label-5: 'Scale Wt (g)';
+  --label-6: 'Cost / g';
+  --label-7: 'Row Cost';
+  --label-8: 'Remove';
+}
+
+.fc-formula-table.fc-with-volumes {
   --label-6: 'Volume (ml)';
   --label-7: 'Cost / g';
   --label-8: 'Row Cost';
