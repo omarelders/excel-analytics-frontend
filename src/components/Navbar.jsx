@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
-import { Home, List, CreditCard, LayoutGrid, Lightbulb, Menu, X } from 'lucide-react'
+import { Home, List, CreditCard, LayoutGrid, FlaskConical, Menu, X } from 'lucide-react'
 import ThemeToggle from './ThemeToggle'
 import './Navbar.css'
 
@@ -72,9 +72,9 @@ function Navbar() {
             </NavLink>
           </li>
           <li>
-            <NavLink to="/ideas" className={({ isActive }) => isActive ? 'active' : ''} onClick={() => setMobileMenuOpen(false)}>
-              <Lightbulb size={20} />
-              <span>Ideas</span>
+            <NavLink to="/formula-calculator" className={({ isActive }) => isActive ? 'active' : ''} onClick={() => setMobileMenuOpen(false)}>
+              <FlaskConical size={20} />
+              <span>Formula Calc</span>
             </NavLink>
           </li>
         </ul>

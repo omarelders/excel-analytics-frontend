@@ -12,6 +12,7 @@ import AnalyticsPage from './pages/Analytics'
 import SettingsPage from './pages/Settings'
 import ContentCalendarPage from './pages/ContentCalendar'
 import IdeasPage from './pages/Ideas'
+import FormulaCalculatorPage from './pages/FormulaCalculator'
 import LoginPage from './pages/Login'
 import OfflineIndicator from './components/OfflineIndicator'
 import './App.css'
@@ -133,6 +134,17 @@ function App() {
                   <Navbar />
                   <main className="main-content">
                     <IdeasPage />
+                  </main>
+                </>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/formula-calculator" element={
+              <ProtectedRoute>
+                <>
+                  <Navbar />
+                  <main className="main-content">
+                    <FormulaCalculatorPage />
                   </main>
                 </>
               </ProtectedRoute>
