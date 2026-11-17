@@ -1,25 +1,27 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState } from 'react';
 import { GripVertical } from 'lucide-react';
 import './ExportModal.css';
 
 export default function ExportModal({ isOpen, onClose, onExport, columns }) {
-  const [selectedColumns, setSelectedColumns] = useState(new Set());
+  const [selectedColumns, setSelectedColumns] = useState(() => new Set((columns || []).map(col => col.key)));
   const [selectAll, setSelectAll] = useState(true);
   const [exportLimit, setExportLimit] = useState('');
   
   // Custom ordering state
-  const [localColumns, setLocalColumns] = useState([]);
+  const [localColumns, setLocalColumns] = useState(() => [...(columns || [])]);
   const [draggedIdx, setDraggedIdx] = useState(null);
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
 
   // Initialize all columns as selected when modal opens
-  useEffect(() => {
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
     if (isOpen && columns?.length) {
       setSelectedColumns(new Set(columns.map(col => col.key)));
       setSelectAll(true);
       setExportLimit('');
       setLocalColumns([...columns]);
     }
-  }, [isOpen, columns]);
+  }
 
   // Handle Drag & Drop
   const onDragStart = (e, index) => {
@@ -28,7 +30,7 @@ export default function ExportModal({ isOpen, onClose, onExport, columns }) {
     if (e.dataTransfer) {
       e.dataTransfer.effectAllowed = 'move';
       // Workaround for some browsers requiring data to be set
-      e.dataTransfer.setData('text/html', e.target.parentNode);
+      e.dataTransfer.setData('text/plain', String(index));
     }
   };
 
@@ -75,7 +77,8 @@ export default function ExportModal({ isOpen, onClose, onExport, columns }) {
 
   const handleExport = () => {
     const limitNum = exportLimit ? parseInt(exportLimit, 10) : null;
-    onExport(Array.from(selectedColumns), limitNum);
+    const orderedSelected = localColumns.filter(col => selectedColumns.has(col.key)).map(col => col.key);
+    onExport(orderedSelected, limitNum);
   };
 
   if (!isOpen) return null;

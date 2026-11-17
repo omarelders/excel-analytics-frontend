@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../api'
 import { 
@@ -58,7 +58,7 @@ function PaymentDataPage() {
     net_due: 0
   })
 
-  const fetchData = async (page = 0, search = '') => {
+  const fetchData = useCallback(async (page = 0, search = '') => {
     setLoading(true)
     setError(null)
     try {
@@ -69,8 +69,9 @@ function PaymentDataPage() {
       if (search) params.search = search
       
       const response = await api.get(`/payments/files/${fileId}/data`, { params })
+      const rows = response.data.data || []
       setFilename(response.data.filename)
-      setRecords(response.data.data || [])
+      setRecords(rows)
       setTotalCount(response.data.total || 0)
       setTotals(response.data.totals || {
         delivery_value: 0,
@@ -81,7 +82,7 @@ function PaymentDataPage() {
       })
       
       // Extract unique price types for filter
-      const types = [...new Set(response.data.data.map(r => r['نوع السعر']).filter(Boolean))]
+      const types = [...new Set(rows.map(r => r['نوع السعر']).filter(Boolean))]
       setPriceTypes(prev => {
         const combined = [...new Set([...prev, ...types])]
         return combined
@@ -93,11 +94,11 @@ function PaymentDataPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [fileId])
 
   useEffect(() => {
     fetchData(currentPage, searchTerm)
-  }, [fileId, currentPage, searchTerm])
+  }, [fetchData, currentPage, searchTerm])
 
   const handleSearch = (e) => {
     e.preventDefault()
@@ -347,41 +348,43 @@ function PaymentDataPage() {
             <Loader2 className="spin" size={32} />
             <p>Loading data...</p>
           </div>
-        ) : filteredRecords.length === 0 ? (
-          <div className="empty-state">
-            <Package size={48} />
-            <p>{hasActiveFilters ? 'No records match your filters' : (searchTerm ? `No records match "${searchTerm}"` : 'No records in this file')}</p>
-          </div>
         ) : (
           <>
-            <div className="table-wrapper">
-              <table className="modern-table">
-                <thead>
-                  <tr>
-                    {getColumns().map((col) => (
-                      <th key={col}>{col}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredRecords.map((record, idx) => (
-                    <tr key={idx}>
+            {filteredRecords.length === 0 ? (
+              <div className="empty-state">
+                <Package size={48} />
+                <p>{hasActiveFilters ? 'No records match your filters' : (searchTerm ? `No records match "${searchTerm}"` : 'No records in this file')}</p>
+              </div>
+            ) : (
+              <div className="table-wrapper">
+                <table className="modern-table">
+                  <thead>
+                    <tr>
                       {getColumns().map((col) => (
-                        <td key={col}>
-                          {col === 'الحالة' && record[col] ? (
-                            <span className={`badge badge-${getStatusColor(record[col])}`}>
-                              {record[col]}
-                            </span>
-                          ) : (
-                            record[col] ?? '-'
-                          )}
-                        </td>
+                        <th key={col}>{col}</th>
                       ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {filteredRecords.map((record, idx) => (
+                      <tr key={idx}>
+                        {getColumns().map((col) => (
+                          <td key={col}>
+                            {col === 'الحالة' && record[col] ? (
+                              <span className={`badge badge-${getStatusColor(record[col])}`}>
+                                {record[col]}
+                              </span>
+                            ) : (
+                              record[col] ?? '-'
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             {/* Pagination */}
             {totalPages > 0 && (
@@ -417,7 +420,7 @@ function PaymentDataPage() {
                   </button>
                 </div>
                 <span className="table-info">
-                  {currentPage * PAGE_SIZE + 1}-{Math.min((currentPage + 1) * PAGE_SIZE, totalCount)} من {totalCount}
+                  {totalCount === 0 ? 0 : currentPage * PAGE_SIZE + 1}-{Math.min((currentPage + 1) * PAGE_SIZE, totalCount)} من {totalCount}
                   {hasActiveFilters && ` (${filteredRecords.length} shown after filters)`}
                 </span>
               </div>

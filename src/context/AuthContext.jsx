@@ -1,4 +1,4 @@
-import { createContext, useState, useContext, useEffect } from 'react'
+import { createContext, useState, useContext, useEffect, useCallback } from 'react'
 import { API_BASE_URL } from '../config/apiBaseUrl'
 import { clearOfflineStorage, discardSyncQueueEntriesFromOtherSessions } from '../utils/offlineStorage'
 import { purgeAppCaches } from '../utils/cachePurge'
@@ -21,6 +21,7 @@ const parseErrorResponse = async (response, fallbackMessage) => {
   return `${fallbackMessage} (${response.status})`
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext)
   if (!context) {
@@ -30,9 +31,6 @@ export const useAuth = () => {
 }
 
 export function AuthProvider({ children }) {
-  // Check if we already opened the app this browser session
-  const hasOpenedBefore = sessionStorage.getItem('app_opened')
-  
   // Read cached user from localStorage
   const cachedUser = (() => {
     try {
@@ -43,19 +41,12 @@ export function AuthProvider({ children }) {
     }
   })()
 
-  // Only show loading on the VERY FIRST open (no sessionStorage flag yet)
-  // If app was already opened this session, skip loading entirely
+  // Wait for session validation whenever there is no cached user
   const [user, setUser] = useState(cachedUser)
-  const [loading, setLoading] = useState(!hasOpenedBefore && !cachedUser)
+  const [loading, setLoading] = useState(!cachedUser)
 
-  // Mark that the app has been opened this session
-  useEffect(() => {
-    sessionStorage.setItem('app_opened', 'true')
-    validateSession()
-  }, [])
-
-  // Background validation - never shows loading screen on reload
-  const validateSession = async () => {
+  // Background validation - never shows loading screen on reload when cachedUser exists
+  const validateSession = useCallback(async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
         credentials: 'include',
@@ -79,11 +70,29 @@ export function AuthProvider({ children }) {
     } catch (error) {
       console.error('Auth check failed:', error)
       // On network error, keep cached user (don't kick them out)
-      return user
+      try {
+        const stored = localStorage.getItem('user_data')
+        return stored ? JSON.parse(stored) : null
+      } catch {
+        return null
+      }
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  // Mark that the app has been opened this session and listen for 401 unauthorized events
+  useEffect(() => {
+    sessionStorage.setItem('app_opened', 'true')
+    validateSession()
+
+    const onUnauthorized = () => {
+      localStorage.removeItem('user_data')
+      setUser(null)
+    }
+    window.addEventListener('auth-unauthorized', onUnauthorized)
+    return () => window.removeEventListener('auth-unauthorized', onUnauthorized)
+  }, [validateSession])
 
   const login = async (username, password, rememberMe = false) => {
     const formData = new FormData()

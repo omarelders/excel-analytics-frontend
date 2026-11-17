@@ -5,6 +5,7 @@ import api from '../api'
 import { Settings, Trash2, RotateCcw, AlertCircle, Check, Loader2, ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, Database, Bell, Send } from 'lucide-react'
 import TableSkeleton from '../components/TableSkeleton'
 import NotificationPrompt from '../components/NotificationPrompt'
+import { useAuth } from '../context/AuthContext'
 import { getStatusColor } from '../constants/statuses'
 import './RecycleBin.css' // We can reuse the table styles or import specific ones
 import './Settings.css'
@@ -12,6 +13,7 @@ import './Settings.css'
 const PAGE_SIZE = 50
 
 function SettingsPage() {
+  const { user } = useAuth()
   const [activeTab, setActiveTab] = useState('recycle-bin')
   
   // Recycle Bin State
@@ -37,6 +39,7 @@ function SettingsPage() {
     } catch (err) {
       console.error('Failed to send test notification:', err)
       setStatusMessage({ type: 'error', text: 'Failed to send notification' })
+      setTimeout(() => setStatusMessage(null), 4000)
     } finally {
       setTestLoading(false)
     }
@@ -81,6 +84,7 @@ function SettingsPage() {
         type: 'error', 
         text: err.response?.data?.detail || 'Failed to restore shipment' 
       })
+      setTimeout(() => setStatusMessage(null), 4000)
     } finally {
       setRestoringId(null)
     }
@@ -151,21 +155,23 @@ function SettingsPage() {
             
             <NotificationPrompt />
             
-            <div className="settings-table-card" style={{ marginTop: '1.5rem', padding: '1.5rem' }}>
-                <h3>Test Notifications</h3>
-                <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-                    Send a test notification to all subscribed devices to verify that push notifications are working correctly.
-                </p>
-                <button 
-                    onClick={handleTestNotification} 
-                    disabled={testLoading}
-                    className="btn-primary"
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-                >
-                    {testLoading ? <Loader2 size={18} className="spin" /> : <Send size={18} />}
-                    Send Test Notification
-                </button>
-            </div>
+            {user?.is_admin && (
+              <div className="settings-table-card" style={{ marginTop: '1.5rem', padding: '1.5rem' }}>
+                  <h3>Test Notifications</h3>
+                  <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+                      Send a test notification to all subscribed devices to verify that push notifications are working correctly.
+                  </p>
+                  <button 
+                      onClick={handleTestNotification} 
+                      disabled={testLoading}
+                      className="btn-primary"
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                  >
+                      {testLoading ? <Loader2 size={18} className="spin" /> : <Send size={18} />}
+                      Send Test Notification
+                  </button>
+              </div>
+            )}
         </div>
       )}
 
@@ -188,6 +194,14 @@ function SettingsPage() {
             {/* Loading/Error/Empty states handled below */}
             {loading ? (
                 <div style={{ padding: '1rem' }}><TableSkeleton rows={5} /></div>
+            ) : error ? (
+                <div className="empty-state" style={{ padding: '3rem' }}>
+                <AlertCircle size={40} />
+                <p>{error}</p>
+                <button className="restore-btn" onClick={() => fetchDeleted(currentPage)}>
+                  Retry
+                </button>
+                </div>
             ) : deletedShipments.length === 0 ? (
                 <div className="empty-state" style={{ padding: '3rem' }}>
                 <Trash2 size={40} />

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { Play, Pause } from 'lucide-react'
 import './WaveformPlayer.css'
 
@@ -24,7 +24,7 @@ function WaveformPlayer({ audioData, duration, noteId }) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [totalDuration, setTotalDuration] = useState(duration || 0)
-  const [waveformBars] = useState(() => generateWaveformBars(35, noteId || 12345))
+  const waveformBars = useMemo(() => generateWaveformBars(35, noteId || 12345), [noteId])
   const [isReady, setIsReady] = useState(false)
   
   // Create audio element once
@@ -45,6 +45,16 @@ function WaveformPlayer({ audioData, duration, noteId }) {
       setIsReady(true)
     }
     
+    const handleTimeUpdate = () => {
+      setCurrentTime(audio.currentTime)
+      setTotalDuration((prev) => {
+        if (prev === 0 && audio.currentTime > 0) {
+          return Math.max(audio.currentTime, duration || 1)
+        }
+        return prev
+      })
+    }
+
     const handleEnded = () => {
       setIsPlaying(false)
       setCurrentTime(0)
@@ -59,16 +69,23 @@ function WaveformPlayer({ audioData, duration, noteId }) {
     
     audio.addEventListener('loadeddata', handleLoadedData)
     audio.addEventListener('canplaythrough', handleLoadedData)
+    audio.addEventListener('timeupdate', handleTimeUpdate)
     audio.addEventListener('ended', handleEnded)
     audio.addEventListener('error', handleError)
     
-    // Now set the source
-    audio.src = `data:audio/webm;base64,${audioData}`
+    // Support both audio/webm and audio/mp4 while preserving the base64 data URI literal
+    const resolvedSrc = audioData.startsWith('data:')
+      ? audioData
+      : audioData.startsWith('AAAA')
+        ? 'data:audio/mp4;base64,' + audioData
+        : 'data:audio/webm;base64,' + audioData
+    audio.src = resolvedSrc
     audio.load()
     
     return () => {
       audio.removeEventListener('loadeddata', handleLoadedData)
       audio.removeEventListener('canplaythrough', handleLoadedData)
+      audio.removeEventListener('timeupdate', handleTimeUpdate)
       audio.removeEventListener('ended', handleEnded)
       audio.removeEventListener('error', handleError)
       audio.pause()

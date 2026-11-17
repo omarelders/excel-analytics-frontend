@@ -55,7 +55,11 @@ function ContentCalendar() {
       // Fallback to localStorage if API fails (for offline/first load)
       const saved = localStorage.getItem('contentCalendarData')
       if (saved) {
-        setContentData(JSON.parse(saved))
+        try {
+          setContentData(JSON.parse(saved))
+        } catch {
+          setContentData([])
+        }
       }
     } finally {
       setIsLoading(false)
@@ -69,10 +73,10 @@ function ContentCalendar() {
 
   // Also keep localStorage as backup (will sync when API works)
   useEffect(() => {
-    if (contentData.length > 0) {
+    if (!isLoading) {
       localStorage.setItem('contentCalendarData', JSON.stringify(contentData))
     }
-  }, [contentData])
+  }, [contentData, isLoading])
 
   const getMonthDays = (date) => {
     const year = date.getFullYear()
@@ -133,6 +137,9 @@ function ContentCalendar() {
     if (activeFilter === 'progress') {
       return ['To Edit', 'To Shoot', 'Write Caption'].includes(content.status)
     }
+    if (activeFilter === 'gallery') {
+      return Boolean(content.visualIdea?.trim()) || content.type === 'photo' || content.type === 'video'
+    }
     if (activeFilter === 'tiktok') return content.platforms.includes('TikTok')
     if (activeFilter === 'insta') return content.platforms.includes('Insta')
     return true
@@ -186,7 +193,7 @@ function ContentCalendar() {
   const openEditModal = (content, e) => {
     e.stopPropagation()
     setEditingContent(content)
-    setSelectedDate(new Date(content.date))
+    setSelectedDate(new Date(content.date + 'T00:00:00'))
     setFormData({
       title: content.title,
       type: content.type,

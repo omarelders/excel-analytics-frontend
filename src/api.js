@@ -114,6 +114,10 @@ api.interceptors.response.use(
         // refused by the flush rather than sent.
         console.warn('[API] 401 Unauthorized - session expired or invalid');
         localStorage.removeItem('authToken');
+        localStorage.removeItem('user_data');
+        if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+          window.dispatchEvent(new Event('auth-unauthorized'));
+        }
         // Could redirect to login: window.location.href = '/login';
         break;
         
@@ -153,6 +157,7 @@ api.interceptors.response.use(
     const enhancedError = {
       ...error,
       status,
+      message: data?.detail || data?.message || error.message,
       detail: data?.detail || error.message,
       isApiError: true,
     };

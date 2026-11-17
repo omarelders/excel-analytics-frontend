@@ -12,6 +12,8 @@ export const CHANGEABLE_STATUSES = [
   'قيد التوصيل',
   'تم التسليم',
   'مرتجع',
+  'تم الارجاع للراسل',
+  'ارتجاع للراسل',
   'تسليم جزئي',
   'ملغى'
 ]
@@ -20,6 +22,7 @@ export const CHANGEABLE_STATUSES = [
 export const TARGET_STATUSES = [
   'تم التسليم',
   'مرتجع',
+  'ارتجاع للراسل',
   'تسليم جزئي',
   'قيد التوصيل'
 ]
@@ -36,6 +39,8 @@ export const STATUS_COLORS = {
   'طلب الشحن': 'pending',
   'طلب شحن': 'pending',
   'مرتجع': 'error',
+  'تم الارجاع للراسل': 'warning',
+  'ارتجاع للراسل': 'warning',
   'ملغى': 'error',
   'قيد التوصيل': 'info',
   'تسليم جزئي': 'warning'
@@ -55,9 +60,11 @@ export const getStatusColor = (status) => {
   }
   
   // Fallback pattern matching (for partial matches)
+  if (status.includes('مرتجع') || status.includes('ارجاع') || status.includes('إرجاع') || status.includes('ملغى') || status.includes('ملغي') || status.includes('إلغاء')) {
+    return (status.includes('ارجاع') || status.includes('إرجاع')) ? 'warning' : 'error'
+  }
   if (status.includes('تم')) return 'success'
   if (status.includes('الاستلام')) return 'info'
-  if (status.includes('ملغى')) return 'error'
   
   return 'default'
 }

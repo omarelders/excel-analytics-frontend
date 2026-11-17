@@ -9,7 +9,7 @@ const NotificationPrompt = () => {
   const [showIosInstructions, setShowIosInstructions] = useState(false);
 
   useEffect(() => {
-    checkSubscription().then(setIsSubscribed);
+    checkSubscription().then(setIsSubscribed).catch(() => setIsSubscribed(false));
     
     // Check if iOS
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;

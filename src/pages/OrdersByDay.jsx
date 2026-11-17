@@ -112,8 +112,13 @@ function OrdersByDayPage() {
     const regex = /^\d{4}-\d{2}-\d{2}$/
     if (!regex.test(dateStr)) return false
     
-    const date = new Date(dateStr)
-    return date instanceof Date && !isNaN(date)
+    const [year, month, day] = dateStr.split('-').map(Number)
+    const date = new Date(year, month - 1, day)
+    return (
+      date.getFullYear() === year &&
+      date.getMonth() === month - 1 &&
+      date.getDate() === day
+    )
   }
 
   const handleDateSearch = (e) => {
@@ -142,7 +147,7 @@ function OrdersByDayPage() {
   }
 
   const formatDisplayDate = (dateStr) => {
-    const d = new Date(dateStr)
+    const d = new Date(dateStr + 'T00:00:00')
     return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
   }
 

@@ -10,12 +10,14 @@ import {
   Trash2
 } from 'lucide-react'
 import FilesGridSkeleton from '../components/FilesGridSkeleton'
+import { useAuth } from '../context/AuthContext'
 import './Home.css'
 
 const MAX_FILE_SIZE_MB = 10
 
 function HomePage() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [file, setFile] = useState(null)
   const [status, setStatus] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -252,13 +254,15 @@ function HomePage() {
                     {formatDate(pf.upload_date)}
                   </p>
                 </div>
-                <button 
-                  className="delete-btn"
-                  onClick={(e) => handleDeleteFile(e, pf.id, pf.filename)}
-                  title="Delete file"
-                >
-                  <Trash2 size={16} />
-                </button>
+                {user?.is_admin && (
+                  <button 
+                    className="delete-btn"
+                    onClick={(e) => handleDeleteFile(e, pf.id, pf.filename)}
+                    title="Delete file"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
               </div>
             ))}
           </div>

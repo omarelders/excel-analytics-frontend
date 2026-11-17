@@ -268,13 +268,15 @@ function PaymentProcessingPage() {
                       {formatDate(pf.upload_date)}
                     </p>
                   </div>
-                  <button 
-                    className="delete-btn"
-                    onClick={(e) => handleDeleteFile(e, pf.id, pf.filename)}
-                    title="Delete file"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                  {user?.is_admin && (
+                    <button 
+                      className="delete-btn"
+                      onClick={(e) => handleDeleteFile(e, pf.id, pf.filename)}
+                      title="Delete file"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

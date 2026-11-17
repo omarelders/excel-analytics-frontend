@@ -55,6 +55,7 @@ function RecycleBinPage() {
         type: 'error', 
         text: err.response?.data?.detail || 'Failed to restore shipment' 
       })
+      setTimeout(() => setStatusMessage(null), 4000)
     } finally {
       setRestoringId(null)
     }
@@ -85,6 +86,14 @@ function RecycleBinPage() {
       <div className="table-card">
         {loading ? (
           <TableSkeleton rows={8} />
+        ) : error ? (
+          <div className="empty-state">
+            <AlertCircle size={48} />
+            <p>{error}</p>
+            <button className="restore-btn" onClick={() => fetchDeleted(currentPage)}>
+              Retry
+            </button>
+          </div>
         ) : deletedShipments.length === 0 ? (
           <div className="empty-state">
             <Trash2 size={48} />

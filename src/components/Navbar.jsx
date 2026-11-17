@@ -1,17 +1,11 @@
 import { useState, useEffect } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 import { Home, List, CreditCard, LayoutGrid, Lightbulb, Menu, X } from 'lucide-react'
 import ThemeToggle from './ThemeToggle'
 import './Navbar.css'
 
 function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const location = useLocation()
-
-  // Close mobile menu on route change
-  useEffect(() => {
-    setMobileMenuOpen(false)
-  }, [location])
 
   // Prevent body scroll when menu is open
   useEffect(() => {
@@ -52,33 +46,33 @@ function Navbar() {
       />
 
       <div className={`nav-content ${mobileMenuOpen ? 'open' : ''}`}>
-        <ul className="nav-links">
+        <ul className="nav-links" onClick={() => setMobileMenuOpen(false)}>
           <li>
-            <NavLink to="/" className={({ isActive }) => isActive ? 'active' : ''}>
+            <NavLink to="/" className={({ isActive }) => isActive ? 'active' : ''} onClick={() => setMobileMenuOpen(false)}>
               <Home size={20} />
               <span>Home</span>
             </NavLink>
           </li>
           <li>
-            <NavLink to="/all-orders" className={({ isActive }) => isActive ? 'active' : ''}>
+            <NavLink to="/all-orders" className={({ isActive }) => isActive ? 'active' : ''} onClick={() => setMobileMenuOpen(false)}>
               <List size={20} />
               <span>All Orders</span>
             </NavLink>
           </li>
           <li>
-            <NavLink to="/payment-processing" className={({ isActive }) => isActive ? 'active' : ''}>
+            <NavLink to="/payment-processing" className={({ isActive }) => isActive ? 'active' : ''} onClick={() => setMobileMenuOpen(false)}>
               <CreditCard size={20} />
               <span>Payment Processing</span>
             </NavLink>
           </li>
           <li>
-            <NavLink to="/content-calendar" className={({ isActive }) => isActive ? 'active' : ''}>
+            <NavLink to="/content-calendar" className={({ isActive }) => isActive ? 'active' : ''} onClick={() => setMobileMenuOpen(false)}>
               <LayoutGrid size={20} />
               <span>Content Calendar</span>
             </NavLink>
           </li>
           <li>
-            <NavLink to="/ideas" className={({ isActive }) => isActive ? 'active' : ''}>
+            <NavLink to="/ideas" className={({ isActive }) => isActive ? 'active' : ''} onClick={() => setMobileMenuOpen(false)}>
               <Lightbulb size={20} />
               <span>Ideas</span>
             </NavLink>

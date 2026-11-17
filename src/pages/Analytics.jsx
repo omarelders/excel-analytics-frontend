@@ -14,7 +14,6 @@ function AnalyticsPage() {
   const [error, setError] = useState(null)
   const [hoveredStatus, setHoveredStatus] = useState(null)
   const [hoveredTrend, setHoveredTrend] = useState(null)
-  const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 })
 
   useEffect(() => {
     fetchAnalytics()
@@ -65,6 +64,10 @@ function AnalyticsPage() {
   // Helper to generate smooth SVG path from data points
   const getSmoothPath = (points, height, width) => {
     if (!points || points.length === 0) return ''
+    if (points.length === 1) {
+      const y = height - (points[0].count / maxDailyCount) * height
+      return `M 0 ${y} L ${width} ${y}`
+    }
 
     // Helper to get coordinates
     const getCoords = (index) => {
@@ -205,10 +208,11 @@ function AnalyticsPage() {
                       return sortedData.map((item, idx) => {
                         const percentage = (item.count / total) * 100
                         const angle = (percentage / 100) * 360
+                        const safeAngle = Math.min(angle, 359.99)
                         
                         const startAngle = currentAngle
-                        const endAngle = currentAngle + angle
-                        currentAngle = endAngle
+                        const endAngle = currentAngle + safeAngle
+                        currentAngle += angle
                         
                         // Donut calculation
                         const innerRadius = 55
@@ -353,7 +357,7 @@ function AnalyticsPage() {
             <h3>Daily Shipment Trends</h3>
             <span className="chart-subtitle">
               {data?.daily_trends?.length > 0 
-                ? `${new Date(data.daily_trends[0].date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${new Date(data.daily_trends[data.daily_trends.length - 1].date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                ? `${new Date(data.daily_trends[0].date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${new Date(data.daily_trends[data.daily_trends.length - 1].date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
                 : 'Last 30 days'}
             </span>
           </div>
@@ -371,7 +375,6 @@ function AnalyticsPage() {
                       totalPoints - 1
                     )
                     setHoveredTrend({ ...data.daily_trends[index], index })
-                    setCursorPosition({ x, y: e.clientY - rect.top })
                   }}
                   onMouseLeave={() => setHoveredTrend(null)}
                 >
@@ -421,7 +424,7 @@ function AnalyticsPage() {
                     {/* Active Point */}
                     {hoveredTrend && (
                       <circle
-                        cx={(hoveredTrend.index / (data.daily_trends.length - 1)) * 800}
+                        cx={(data.daily_trends.length > 1 ? hoveredTrend.index / (data.daily_trends.length - 1) : 0.5) * 800}
                         cy={200 - (hoveredTrend.count / maxDailyCount) * 200}
                         r="6"
                         fill="hsl(var(--background))"
@@ -437,12 +440,12 @@ function AnalyticsPage() {
                     <div 
                       className="chart-tooltip"
                       style={{ 
-                        left: `${(hoveredTrend.index / (data.daily_trends.length - 1)) * 100}%`,
+                        left: `${(data.daily_trends.length > 1 ? hoveredTrend.index / (data.daily_trends.length - 1) : 0.5) * 100}%`,
                         top: `${Math.max(10, 200 - (hoveredTrend.count / maxDailyCount) * 200 - 60)}px` 
                       }}
                     >
                       <div className="tooltip-date">
-                        {new Date(hoveredTrend.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        {new Date(hoveredTrend.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </div>
                       <div className="tooltip-value">
                         <div className="tooltip-dot"></div>
@@ -455,13 +458,13 @@ function AnalyticsPage() {
                   {/* X-Axis Labels */}
                   <div className="chart-x-axis">
                     {data.daily_trends.map((day, idx) => (
-                      idx % Math.ceil(data.daily_trends.length / 8) === 0 && (
+                      idx % Math.max(1, Math.ceil(data.daily_trends.length / 8)) === 0 && (
                         <div 
                           key={idx} 
                           className="x-label"
-                          style={{ left: `${(idx / (data.daily_trends.length - 1)) * 100}%` }}
+                          style={{ left: `${(data.daily_trends.length > 1 ? idx / (data.daily_trends.length - 1) : 0.5) * 100}%` }}
                         >
-                          {new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          {new Date(day.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         </div>
                       )
                     ))}

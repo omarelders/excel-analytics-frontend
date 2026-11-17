@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
-import { Plus, Star, Calendar, Edit3, Trash2, X, Mic, Square, Play, Pause, Volume2 } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Plus, Star, Calendar, Edit3, Trash2, X, Mic, Square, Volume2 } from 'lucide-react'
 import { useAudioRecorder } from '../hooks/useAudioRecorder'
 import WaveformPlayer from '../components/WaveformPlayer'
 import api from '../api'
@@ -40,15 +40,11 @@ function Ideas() {
   // Animation state for quick note creation
   const [animatingNote, setAnimatingNote] = useState(null)
   
-  // Audio recorder hook
+  // Audio recorder hook (voice notes played via WaveformPlayer with data:audio/webm;base64,)
   const recorder = useAudioRecorder(120) // 2 minute max
-  
-  // Audio player for voice notes
-  const [playingNoteId, setPlayingNoteId] = useState(null)
-  const audioRefs = useRef({})
 
   // Fetch notes from API
-  const fetchNotes = async () => {
+  const fetchNotes = useCallback(async () => {
     try {
       setIsLoading(true)
       const response = await api.get('/api/notes', {
@@ -60,17 +56,28 @@ function Ideas() {
       // Fallback to localStorage if API fails
       const saved = localStorage.getItem('ideasNotesData')
       if (saved) {
-        setNotes(JSON.parse(saved))
+        try {
+          setNotes(JSON.parse(saved))
+        } catch (parseErr) {
+          console.error('Failed to parse cached notes:', parseErr)
+        }
       }
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [showFavoritesOnly])
 
   // Fetch on mount and when filter changes
   useEffect(() => {
     fetchNotes()
-  }, [showFavoritesOnly])
+  }, [fetchNotes])
+
+  // Persist notes to localStorage when not loading
+  useEffect(() => {
+    if (!isLoading) {
+      localStorage.setItem('ideasNotesData', JSON.stringify(notes))
+    }
+  }, [notes, isLoading])
 
   const openAddModal = () => {
     setEditingNote(null)
@@ -100,7 +107,7 @@ function Ideas() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!formData.title.trim()) return
+    if (!formData.title.trim() || recorder.isRecording) return
     
     // For voice notes, must have recording
     if (formData.noteType === 'voice' && !recorder.hasRecording && !editingNote) {
@@ -217,13 +224,15 @@ function Ideas() {
         }
       }
       
-      setAnimatingNote(newNote)
-      setNotes(prev => [newNote, ...prev])
-      
-      // Clear animation after it completes
-      setTimeout(() => {
-        setAnimatingNote(null)
-      }, 600)
+      if (!showFavoritesOnly) {
+        setAnimatingNote(newNote)
+        setNotes(prev => [newNote, ...prev])
+        
+        // Clear animation after it completes
+        setTimeout(() => {
+          setAnimatingNote(null)
+        }, 600)
+      }
     } catch (error) {
       console.error('Failed to create note:', error)
     }
@@ -243,41 +252,6 @@ function Ideas() {
     return {
       backgroundColor: color.bg,
       color: color.text
-    }
-  }
-
-  // Format duration for display
-  const formatDuration = (seconds) => {
-    if (!seconds) return '0:00'
-    const mins = Math.floor(seconds / 60)
-    const secs = Math.floor(seconds % 60)
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
-
-  // Play/pause voice note
-  const togglePlayVoiceNote = (note, e) => {
-    e.stopPropagation()
-    
-    if (!note.audio_data) return
-    
-    // Create audio element if not exists
-    if (!audioRefs.current[note.id]) {
-      const audio = new Audio(`data:audio/webm;base64,${note.audio_data}`)
-      audio.onended = () => setPlayingNoteId(null)
-      audioRefs.current[note.id] = audio
-    }
-    
-    const audio = audioRefs.current[note.id]
-    
-    if (playingNoteId === note.id) {
-      audio.pause()
-      setPlayingNoteId(null)
-    } else {
-      // Stop any currently playing
-      Object.values(audioRefs.current).forEach(a => a.pause())
-      audio.currentTime = 0
-      audio.play()
-      setPlayingNoteId(note.id)
     }
   }
 
@@ -330,7 +304,6 @@ function Ideas() {
         ) : (
           filteredNotes.map(note => {
             const isAnimating = animatingNote?.id === note.id
-            const isPlaying = playingNoteId === note.id
             return (
             <div 
               key={note.id} 
@@ -550,7 +523,7 @@ function Ideas() {
                 <button 
                   type="submit" 
                   className="btn-submit"
-                  disabled={isSaving || (formData.noteType === 'voice' && !recorder.hasRecording && !editingNote)}
+                  disabled={isSaving || recorder.isRecording || (formData.noteType === 'voice' && !recorder.hasRecording && !editingNote)}
                 >
                   {isSaving ? 'Saving...' : (editingNote ? 'Save Changes' : 'Create Note')}
                 </button>

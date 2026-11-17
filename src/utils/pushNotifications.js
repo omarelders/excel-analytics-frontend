@@ -7,7 +7,7 @@ const UNSUBSCRIBE_URL = '/notifications/unsubscribe';
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding)
-    .replace(/\-/g, '+')
+    .replace(/-/g, '+')
     .replace(/_/g, '/');
 
   const rawData = window.atob(base64);
@@ -51,18 +51,23 @@ export async function subscribeToPush() {
   });
 
   // Send to backend
-  await api.post(SUBSCRIBE_URL, subscription);
+  const payload = subscription.toJSON ? subscription.toJSON() : subscription;
+  await api.post(SUBSCRIBE_URL, payload);
   return true;
 }
 
 export async function unsubscribeFromPush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    return false;
+  }
   const registration = await navigator.serviceWorker.ready;
   const subscription = await registration.pushManager.getSubscription();
   
   if (subscription) {
     // Unsubscribe from backend first (best effort)
     try {
-        await api.post(UNSUBSCRIBE_URL, subscription);
+        const payload = subscription.toJSON ? subscription.toJSON() : subscription;
+        await api.post(UNSUBSCRIBE_URL, payload);
     } catch (e) {
         console.warn('Failed to unsubscribe from backend', e);
     }

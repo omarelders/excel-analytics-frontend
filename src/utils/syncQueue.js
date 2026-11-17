@@ -60,7 +60,7 @@ export const syncFailureNotice = (failures) => {
 };
 
 /** What a queue entry is waiting on: ready to send, out of time, or spent for good. */
-export const retryDecision = (entry, now) => {
+export const retryDecision = (entry, now = Date.now()) => {
   const attempts = entry.attempts ?? 0;
 
   if (entry.failed === true || attempts >= MAX_SYNC_ATTEMPTS) {
@@ -254,26 +254,71 @@ export const refreshSyncState = async () => {
  */
 export const attachSyncEngine = ({ flush = flushSyncQueue, refresh = refreshSyncState, intervalMs = 5000 } = {}) => {
   const swallow = (promise) => promise.catch((error) => console.error('Offline sync error:', error));
+  let retryTimer = null;
+
+  const clearRetryTimer = () => {
+    if (retryTimer !== null) {
+      clearTimeout(retryTimer);
+      retryTimer = null;
+    }
+  };
+
+  const scheduleDeferredFlush = (result) => {
+    clearRetryTimer();
+    if (result && result.deferred > 0 && isOnline()) {
+      retryTimer = setTimeout(() => {
+        retryTimer = null;
+        if (isOnline()) {
+          swallow(runFlush());
+        }
+      }, RETRY_BACKOFF_BASE_MS);
+    }
+  };
+
+  const runFlush = async () => {
+    const result = await flush();
+    scheduleDeferredFlush(result);
+    return result;
+  };
+
+  const refreshAndFlushReady = async () => {
+    const state = await refresh();
+    if (!isOnline() || passInFlight) {
+      return state;
+    }
+    const queue = await getSyncQueue();
+    const hasReady = queue.some(
+      (entry) => isQueuedUnderCurrentSession(entry) && retryDecision(entry, Date.now()) === 'ready'
+    );
+    if (hasReady) {
+      await runFlush();
+    }
+    return state;
+  };
 
   const handleOnline = async () => {
     publish({ online: true });
     // The reason the "will sync when you are back online" message can be made true.
-    await swallow(flush());
+    await swallow(runFlush());
   };
-  const handleOffline = () => publish({ online: false });
-  const handleQueueUpdated = () => swallow(refresh());
+  const handleOffline = () => {
+    clearRetryTimer();
+    publish({ online: false });
+  };
+  const handleQueueUpdated = () => swallow(refreshAndFlushReady());
 
   window.addEventListener('online', handleOnline);
   window.addEventListener('offline', handleOffline);
   window.addEventListener('sync-queue-updated', handleQueueUpdated);
 
-  swallow(refresh());
-  const interval = setInterval(() => swallow(refresh()), intervalMs);
+  swallow(refreshAndFlushReady());
+  const interval = setInterval(() => swallow(refreshAndFlushReady()), intervalMs);
 
   return () => {
     window.removeEventListener('online', handleOnline);
     window.removeEventListener('offline', handleOffline);
     window.removeEventListener('sync-queue-updated', handleQueueUpdated);
     clearInterval(interval);
+    clearRetryTimer();
   };
 };

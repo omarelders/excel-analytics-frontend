@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import api from '../api'
 import { ChevronLeft, ChevronRight, ChevronFirst, ChevronLast, Package, DollarSign, Filter, X, Loader2, AlertCircle, Check, Calendar, ChevronDown, Trash2, Pencil, Edit3, BarChart3, Search, Download } from 'lucide-react'
 import ExportModal from '../components/ExportModal'
@@ -40,7 +40,6 @@ const EXPORT_COLUMNS = [
 
 function AllOrdersPage() {
   const navigate = useNavigate()
-  const location = useLocation()
   const [shipments, setShipments] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -258,8 +257,11 @@ function AllOrdersPage() {
   }, [currentPage, searchTerm, dateFrom, dateTo])
 
   useEffect(() => {
+    fetchStatuses() // Fetch available statuses from backend once on mount
+  }, [])
+
+  useEffect(() => {
     fetchStats(dateFrom, dateTo)
-    fetchStatuses() // Fetch available statuses from backend
   }, [dateFrom, dateTo])
 
   // Handle search from autocomplete component
@@ -275,6 +277,7 @@ function AllOrdersPage() {
     setAmountMax('')
     setDateFrom('')
     setDateTo('')
+    setCurrentPage(0)
   }
 
   // Selection handlers
@@ -291,7 +294,8 @@ function AllOrdersPage() {
   }
 
   const toggleSelectAll = () => {
-    if (selectedIds.size === filteredShipments.length) {
+    const allFilteredSelected = filteredShipments.length > 0 && filteredShipments.every(s => selectedIds.has(s['الكود']))
+    if (allFilteredSelected) {
       setSelectedIds(new Set())
     } else {
       setSelectedIds(new Set(filteredShipments.map(s => s['الكود'])))
@@ -342,12 +346,12 @@ function AllOrdersPage() {
   const handleEditClick = () => {
     if (selectedIds.size !== 1) return
     const code = Array.from(selectedIds)[0]
-    const shipment = filteredShipments.find(s => s['الكود'] === code)
+    const shipment = filteredShipments.find(s => s['الكود'] === code) || shipments.find(s => s['الكود'] === code)
     if (shipment) {
       setEditData({
         code: code,
-        amount: shipment['قيمة الطرد'] || '',
-        description: shipment['الوصف'] || ''
+        amount: shipment['قيمة الطرد'] ?? '',
+        description: shipment['الوصف'] ?? ''
       })
       setShowEditModal(true)
     }
@@ -357,8 +361,10 @@ function AllOrdersPage() {
     setIsEditing(true)
     try {
       const params = new URLSearchParams()
-      if (editData.amount !== '') params.append('amount', editData.amount)
-      if (editData.description !== '') params.append('description', editData.description)
+      if (editData.amount !== '' && editData.amount !== null && editData.amount !== undefined) {
+        params.append('amount', editData.amount)
+      }
+      params.append('description', editData.description ?? '')
       
       await api.patch(`/shipments/${encodeURIComponent(editData.code)}?${params.toString()}`)
       
@@ -395,7 +401,7 @@ function AllOrdersPage() {
       const baseParams = {}
       if (dateFrom) baseParams.date_from = dateFrom
       if (dateTo) baseParams.date_to = dateTo
-      if (searchDraft) baseParams.search = searchDraft
+      if (searchTerm) baseParams.search = searchTerm
 
       let offset = 0
       let totalOrders = 0
@@ -439,13 +445,11 @@ function AllOrdersPage() {
         return
       }
 
-      // Map to selected columns (guarantee original fixed order for the final export)
+      // Map to selected columns preserving the user's custom column order
       const exportData = recordsToExport.map(row => {
         const exportedRow = {}
-        EXPORT_COLUMNS.forEach(col => {
-          if (selectedColumns.includes(col.key)) {
-             exportedRow[col.key] = row[col.key]
-          }
+        selectedColumns.forEach(colKey => {
+          exportedRow[colKey] = row[colKey]
         })
         return exportedRow
       })
@@ -685,14 +689,20 @@ function AllOrdersPage() {
               <input
                 type="date"
                 value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
+                onChange={(e) => {
+                  setDateFrom(e.target.value)
+                  setCurrentPage(0)
+                }}
                 title="From date"
               />
               <span>to</span>
               <input
                 type="date"
                 value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
+                onChange={(e) => {
+                  setDateTo(e.target.value)
+                  setCurrentPage(0)
+                }}
                 title="To date"
                 min={dateFrom}
               />
@@ -721,27 +731,28 @@ function AllOrdersPage() {
       <div className="table-card">
         {loading ? (
           <TableSkeleton rows={8} />
-        ) : filteredShipments.length === 0 ? (
-          <div className="empty-state">
-            <Package size={48} />
-            <p>{hasActiveFilters ? 'No orders match your filters' : 'No orders found'}</p>
-          </div>
         ) : (
           <>
-            <div className="table-wrapper">
-              <table className="orders-table">
-                <thead>
-                  <tr>
-                    {isEditMode && (
-                      <th className="checkbox-cell">
-                        <input
-                          type="checkbox"
-                          className="row-checkbox"
-                          checked={selectedIds.size > 0 && selectedIds.size === filteredShipments.length}
-                          onChange={toggleSelectAll}
-                        />
-                      </th>
-                    )}
+            {filteredShipments.length === 0 ? (
+              <div className="empty-state">
+                <Package size={48} />
+                <p>{hasActiveFilters ? 'No orders match your filters' : 'No orders found'}</p>
+              </div>
+            ) : (
+              <div className="table-wrapper">
+                <table className="orders-table">
+                  <thead>
+                    <tr>
+                      {isEditMode && (
+                        <th className="checkbox-cell">
+                          <input
+                            type="checkbox"
+                            className="row-checkbox"
+                            checked={filteredShipments.length > 0 && filteredShipments.every(s => selectedIds.has(s['الكود']))}
+                            onChange={toggleSelectAll}
+                          />
+                        </th>
+                      )}
                     <th>الكود</th>
                     <th className="date-cell">التاريخ</th>
                     <th className="client-cell">العميل</th>
@@ -824,8 +835,10 @@ function AllOrdersPage() {
                 </tbody>
               </table>
             </div>
+            )}
 
             {/* Pagination */}
+            {totalPages > 0 && (
             <div className="table-footer">
               <div className="pagination">
                 <button 
@@ -861,10 +874,11 @@ function AllOrdersPage() {
                 </button>
               </div>
               <span className="results-info">
-                {currentPage * PAGE_SIZE + 1}-{Math.min((currentPage + 1) * PAGE_SIZE, totalCount)} of {totalCount}
+                {totalCount === 0 ? 0 : currentPage * PAGE_SIZE + 1}-{Math.min((currentPage + 1) * PAGE_SIZE, totalCount)} of {totalCount}
                 {hasActiveFilters && ` (${filteredShipments.length} shown after filters)`}
               </span>
             </div>
+            )}
           </>
         )}
       </div>

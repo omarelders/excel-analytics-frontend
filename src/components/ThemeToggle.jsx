@@ -15,8 +15,21 @@ function ThemeToggle() {
     localStorage.setItem('theme', theme)
   }, [theme])
 
+  useEffect(() => {
+    const handleThemeChange = (e) => {
+      const nextTheme = e.detail || localStorage.getItem('theme') || 'dark'
+      setTheme(nextTheme)
+    }
+    window.addEventListener('theme-change', handleThemeChange)
+    return () => window.removeEventListener('theme-change', handleThemeChange)
+  }, [])
+
   const toggleTheme = () => {
-    setTheme(prevTheme => prevTheme === 'dark' ? 'light' : 'dark')
+    const nextTheme = theme === 'dark' ? 'light' : 'dark'
+    setTheme(nextTheme)
+    localStorage.setItem('theme', nextTheme)
+    document.documentElement.setAttribute('data-theme', nextTheme)
+    window.dispatchEvent(new CustomEvent('theme-change', { detail: nextTheme }))
   }
 
   return (

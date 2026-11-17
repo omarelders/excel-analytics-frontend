@@ -24,11 +24,11 @@ function SearchAutocomplete({
   const [isLoading, setIsLoading] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
-  const [categories, setCategories] = useState({})
   
   const inputRef = useRef(null)
   const dropdownRef = useRef(null)
   const debounceTimer = useRef(null)
+  const requestIdRef = useRef(0)
 
   // Sync with initialValue from parent
   useEffect(() => {
@@ -47,26 +47,31 @@ function SearchAutocomplete({
   // Fetch suggestions with debounce
   const fetchSuggestions = useCallback(async (query) => {
     if (!query || query.length < 1) {
+      requestIdRef.current += 1
       setSuggestions([])
-      setCategories({})
       setIsOpen(false)
+      setIsLoading(false)
       return
     }
 
+    const requestId = ++requestIdRef.current
     setIsLoading(true)
     try {
       const response = await api.get('/shipments/autocomplete', {
         params: { query, limit: 8 }
       })
+      if (requestId !== requestIdRef.current) return
       setSuggestions(response.data.suggestions || [])
-      setCategories(response.data.categories || {})
       setIsOpen(true)
       setActiveIndex(-1)
     } catch (err) {
+      if (requestId !== requestIdRef.current) return
       console.error('Autocomplete error:', err)
       setSuggestions([])
     } finally {
-      setIsLoading(false)
+      if (requestId === requestIdRef.current) {
+        setIsLoading(false)
+      }
     }
   }, [])
 
@@ -89,6 +94,11 @@ function SearchAutocomplete({
 
   // Handle suggestion selection
   const handleSelect = (suggestion) => {
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current)
+    }
+    requestIdRef.current += 1
+    setIsLoading(false)
     setInputValue(suggestion.value)
     onInputChange?.(suggestion.value)
     setIsOpen(false)
@@ -99,6 +109,11 @@ function SearchAutocomplete({
   // Handle form submit
   const handleSubmit = (e) => {
     e.preventDefault()
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current)
+    }
+    requestIdRef.current += 1
+    setIsLoading(false)
     setIsOpen(false)
     onInputChange?.(inputValue)
     onSearch(inputValue)
@@ -106,6 +121,11 @@ function SearchAutocomplete({
 
   // Handle clear
   const handleClear = () => {
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current)
+    }
+    requestIdRef.current += 1
+    setIsLoading(false)
     setInputValue('')
     onInputChange?.('')
     setSuggestions([])

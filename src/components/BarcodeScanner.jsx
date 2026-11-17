@@ -5,12 +5,11 @@ import './BarcodeScanner.css';
 
 const BarcodeScanner = ({ onScan, onClose }) => {
   const scannerRef = useRef(null);
-  const regionRef = useRef(null);
-  const [hasFlash, setHasFlash] = useState(false);
   const [flashOn, setFlashOn] = useState(false);
   const [cameraError, setCameraError] = useState(null);
 
   useEffect(() => {
+    let isMounted = true;
     let html5QrCode;
 
     const startScanner = async () => {
@@ -38,7 +37,7 @@ const BarcodeScanner = ({ onScan, onClose }) => {
         await html5QrCode.start(
           { facingMode: "environment" },
           config,
-          (decodedText, decodedResult) => {
+          (decodedText) => {
             // Success callback
             if (html5QrCode.isScanning) {
                 html5QrCode.stop().then(() => {
@@ -49,33 +48,28 @@ const BarcodeScanner = ({ onScan, onClose }) => {
                 });
             }
           },
-          (errorMessage) => {
-            // Error callback (called freqency, ignore)
+          () => {
+            // Error callback (called frequently, ignore)
           }
         );
 
-        // Check for flash support
-        try {
-            const settings = html5QrCode.getRunningTrackCameraCapabilities();
-            // Note: capabilities might not be available on all devices/browsers immediately
-            // But applyVideoConstraints or getRunningTrackSettings could give torch info
-            // html5-qrcode doesn't expose easy torch check in all versions, 
-            // but usually we can check via media stream track if we had access.
-            // Simplified: we'll try to toggle and see if it fails or assume no flash if error.
-            // Actually html5-qrcode wrapper has applyVideoConstraints.
-        } catch (e) {
-            // ignore
+        if (!isMounted) {
+          html5QrCode.stop().catch(() => {});
+          return;
         }
 
       } catch (err) {
         console.error("Error starting scanner scan:", err);
-        setCameraError("Could not access camera. Please ensure you have granted permission.");
+        if (isMounted) {
+          setCameraError("Could not access camera. Please ensure you have granted permission.");
+        }
       }
     };
 
     startScanner();
 
     return () => {
+      isMounted = false;
       if (scannerRef.current && scannerRef.current.isScanning) {
         scannerRef.current.stop().catch(console.error);
       }
@@ -89,10 +83,8 @@ const BarcodeScanner = ({ onScan, onClose }) => {
          advanced: [{ torch: !flashOn }]
        });
        setFlashOn(!flashOn);
-       setHasFlash(true); // If successful, we have flash
     } catch (err) {
        console.error("Flash toggle failed", err);
-       setHasFlash(false);
     }
   };
 

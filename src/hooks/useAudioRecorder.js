@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 
 /**
  * Custom hook for audio recording using MediaRecorder API
@@ -18,6 +18,7 @@ export function useAudioRecorder(maxDurationSeconds = 120) {
   const streamRef = useRef(null)
   const timerRef = useRef(null)
   const startTimeRef = useRef(null)
+  const elapsedBeforePauseRef = useRef(0)
 
   // Stop recording
   const stopRecording = useCallback(() => {
@@ -34,6 +35,23 @@ export function useAudioRecorder(maxDurationSeconds = 120) {
       timerRef.current = null
     }
   }, [])
+
+  const startTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+    }
+    startTimeRef.current = Date.now()
+    timerRef.current = setInterval(() => {
+      const totalElapsedMs = elapsedBeforePauseRef.current + (Date.now() - startTimeRef.current)
+      const elapsed = Math.floor(totalElapsedMs / 1000)
+      setDuration(elapsed)
+
+      // Auto-stop at max duration
+      if (elapsed >= maxDurationSeconds) {
+        stopRecording()
+      }
+    }, 100)
+  }, [maxDurationSeconds, stopRecording])
 
   // Start recording
   const startRecording = useCallback(async () => {
@@ -89,18 +107,9 @@ export function useAudioRecorder(maxDurationSeconds = 120) {
       mediaRecorder.start(100) // Collect data every 100ms
       setIsRecording(true)
       setIsPaused(false)
-      startTimeRef.current = Date.now()
-      
-      // Start duration timer
-      timerRef.current = setInterval(() => {
-        const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000)
-        setDuration(elapsed)
-        
-        // Auto-stop at max duration
-        if (elapsed >= maxDurationSeconds) {
-          stopRecording()
-        }
-      }, 100)
+      setDuration(0)
+      elapsedBeforePauseRef.current = 0
+      startTimer()
       
     } catch (err) {
       console.error('Recording error:', err)
@@ -111,12 +120,20 @@ export function useAudioRecorder(maxDurationSeconds = 120) {
         setError(`Recording failed: ${err.message}`)
       }
     }
-  }, [maxDurationSeconds, audioUrl, stopRecording])
+  }, [audioUrl, startTimer])
 
   // Pause recording
   const pauseRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording && !isPaused) {
       mediaRecorderRef.current.pause()
+      if (startTimeRef.current) {
+        elapsedBeforePauseRef.current += Date.now() - startTimeRef.current
+        startTimeRef.current = null
+      }
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+        timerRef.current = null
+      }
       setIsPaused(true)
     }
   }, [isRecording, isPaused])
@@ -126,20 +143,55 @@ export function useAudioRecorder(maxDurationSeconds = 120) {
     if (mediaRecorderRef.current && isRecording && isPaused) {
       mediaRecorderRef.current.resume()
       setIsPaused(false)
+      startTimer()
     }
-  }, [isRecording, isPaused])
+  }, [isRecording, isPaused, startTimer])
 
   // Clear recording
   const clearRecording = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+      timerRef.current = null
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.onstop = null
+      mediaRecorderRef.current.stop()
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop())
+      streamRef.current = null
+    }
     if (audioUrl) {
       URL.revokeObjectURL(audioUrl)
     }
+    setIsRecording(false)
+    setIsPaused(false)
     setAudioBlob(null)
     setAudioUrl(null)
     setDuration(0)
     setError(null)
     chunksRef.current = []
+    elapsedBeforePauseRef.current = 0
+    startTimeRef.current = null
   }, [audioUrl])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+        timerRef.current = null
+      }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.onstop = null
+        mediaRecorderRef.current.stop()
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop())
+        streamRef.current = null
+      }
+    }
+  }, [])
 
   // Convert blob to Base64
   const getBase64 = useCallback(async () => {
