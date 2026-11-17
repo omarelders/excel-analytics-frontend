@@ -63,6 +63,7 @@
   display: flex;
   gap: 0.25rem;
   overflow-x: auto;
+  width: 100%;
 }
 
 .fc-tab {
@@ -82,6 +83,10 @@
   flex: none;
   min-block-size: 44px;
   transition: color 0.15s ease;
+}
+
+.fc-tab-materials {
+  margin-inline-start: auto;
 }
 
 .fc-tab:hover {
@@ -277,6 +282,147 @@
   outline-offset: 2px;
 }
 
+/* Inventory Dedicated Workspace Controls */
+.fc-inventory-topbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.fc-inventory-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.fc-filter-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.fc-filter-pill {
+  padding: 0.38rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
+  color: hsl(var(--muted-foreground));
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.fc-filter-pill:hover {
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--muted-foreground) / 0.5);
+}
+
+.fc-filter-pill.active {
+  background: var(--fc-gold-soft);
+  border-color: var(--fc-gold-border);
+  color: var(--fc-gold);
+}
+
+[data-theme='light'] .fc-filter-pill.active {
+  color: #8a6d0b;
+}
+
+.fc-clear-search {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  padding: 0.15rem;
+}
+
+.fc-inv-name-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.fc-usage-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.fc-usage-tag {
+  font-size: 0.68rem;
+  font-weight: 500;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  background: hsl(var(--secondary));
+  color: hsl(var(--muted-foreground));
+}
+
+.fc-inline-pack-group {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.fc-unit-mini-select {
+  width: 66px;
+  flex-shrink: 0;
+}
+
+.fc-price-edit-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.fc-price-highlight-input {
+  border-color: var(--fc-gold-border);
+  font-weight: 600;
+}
+
+.fc-Input-suffix {
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+}
+
+.fc-row-highlighted td {
+  background: var(--fc-gold-soft);
+}
+
+/* Jump to price button inside formula rows */
+.fc-cost-jump-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  border: 1px dashed hsl(var(--border));
+  background: transparent;
+  color: hsl(var(--foreground));
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.fc-cost-jump-btn:hover {
+  border-color: var(--fc-gold);
+  background: var(--fc-gold-soft);
+  color: var(--fc-gold);
+}
+
+[data-theme='light'] .fc-cost-jump-btn:hover {
+  color: #8a6d0b;
+}
+
 /* Inventory & Formula Headers */
 .fc-section-header {
   display: flex;
@@ -320,12 +466,12 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0 0.75rem;
-  min-block-size: 38px;
+  min-block-size: 36px;
   border-radius: calc(var(--radius) - 2px);
   border: 1px solid hsl(var(--input));
   background: hsl(var(--background));
   color: hsl(var(--muted-foreground));
-  min-width: 240px;
+  min-width: 220px;
 }
 
 .fc-search-wrap input {
@@ -340,7 +486,7 @@
 
 .fc-add-material-form {
   display: grid;
-  grid-template-columns: 2fr 0.7fr 0.6fr 0.75fr 0.85fr auto;
+  grid-template-columns: 2fr 0.7fr 0.8fr 0.75fr 0.85fr auto;
   gap: 0.75rem;
   align-items: end;
   padding: 0.875rem;
@@ -362,10 +508,6 @@
   max-inline-size: 100%;
 }
 
-.fc-inventory-table-wrap {
-  max-block-size: 420px;
-}
-
 .fc-table {
   width: 100%;
   border-collapse: separate;
@@ -384,12 +526,11 @@
 
 .fc-inventory-table {
   --label-1: 'Material';
-  --label-2: 'Pack Qty';
-  --label-3: 'Buy Unit';
-  --label-4: 'Density (g/ml)';
-  --label-5: 'Pack Price (EGP)';
-  --label-6: 'Cost / g (w/w)';
-  --label-7: 'Remove';
+  --label-2: 'Pack Size';
+  --label-3: 'Pack Price';
+  --label-4: 'Density';
+  --label-5: 'Effective Cost / g';
+  --label-6: 'Remove';
 }
 
 .fc-table thead {
@@ -451,7 +592,7 @@
 }
 
 .fc-name-input {
-  min-width: 210px;
+  min-width: 220px;
 }
 
 .fc-trace-toggle {
@@ -566,6 +707,10 @@
 @media (max-width: 640px) {
   .fc-page {
     padding: 1rem;
+  }
+
+  .fc-tab-materials {
+    margin-inline-start: 0;
   }
 
   .fc-field-row,
