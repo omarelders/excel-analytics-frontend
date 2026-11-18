@@ -128,7 +128,6 @@ export function useFormulaCogsState() {
         materialId,
         phase,
         pct: 0,
-        note: '',
         isTrace: false,
       }
       return {

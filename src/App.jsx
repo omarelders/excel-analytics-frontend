@@ -10,7 +10,6 @@ import PaymentDataPage from './pages/PaymentData'
 import ShipmentDataPage from './pages/ShipmentData'
 import AnalyticsPage from './pages/Analytics'
 import SettingsPage from './pages/Settings'
-import ContentCalendarPage from './pages/ContentCalendar'
 import IdeasPage from './pages/Ideas'
 import FormulaCalculatorPage from './pages/FormulaCalculator'
 import LoginPage from './pages/Login'
@@ -112,17 +111,6 @@ function App() {
                   <Navbar />
                   <main className="main-content">
                     <SettingsPage />
-                  </main>
-                </>
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/content-calendar" element={
-              <ProtectedRoute>
-                <>
-                  <Navbar />
-                  <main className="main-content">
-                    <ContentCalendarPage />
                   </main>
                 </>
               </ProtectedRoute>

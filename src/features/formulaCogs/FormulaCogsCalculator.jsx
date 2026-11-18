@@ -200,11 +200,11 @@ function FormulaCogsCalculator() {
       <header className="fc-header">
         <div>
           <h1 className="fc-title">Formula Pricing &amp; COGS</h1>
-          <p className="fc-subtitle">
-            {isMaterialsView
-              ? 'Edit raw material pack prices, quantities, and densities — changes update both formulas automatically.'
-              : 'Density-calibrated % w/w formulation calculator — Body Butter sold in g, Body Splash sold in ml.'}
-          </p>
+          {isMaterialsView && (
+            <p className="fc-subtitle">
+              Edit raw material pack prices, quantities, and densities — changes update both formulas automatically.
+            </p>
+          )}
         </div>
 
         <div className="fc-header-actions">
@@ -735,31 +735,19 @@ function FormulaCogsCalculator() {
                 <Package size={17} aria-hidden="true" />
                 <span>Packaging Price</span>
               </h2>
-              <div className="fc-field-row fc-field-row-2">
-                <div className="fc-field">
-                  <label htmlFor="fc-packaging-cost">Cost per Piece (EGP)</label>
-                  <input
-                    id="fc-packaging-cost"
-                    type="number"
-                    min="0"
-                    step="any"
-                    value={activeProduct.packagingCost}
-                    onChange={handleNumChange((val) => updateProductField(activeProduct.id, 'packagingCost', val))}
-                    onBlur={handleNumBlur(activeProduct.packagingCost, (val) =>
-                      updateProductField(activeProduct.id, 'packagingCost', val),
-                    )}
-                  />
-                </div>
-                <div className="fc-field">
-                  <label htmlFor="fc-packaging-note">Item Note</label>
-                  <input
-                    id="fc-packaging-note"
-                    type="text"
-                    value={activeProduct.packagingNote || ''}
-                    onChange={(e) => updateProductField(activeProduct.id, 'packagingNote', e.target.value)}
-                    placeholder="e.g. Jar, Lid, Pump"
-                  />
-                </div>
+              <div className="fc-field">
+                <label htmlFor="fc-packaging-cost">Cost per Piece (EGP)</label>
+                <input
+                  id="fc-packaging-cost"
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={activeProduct.packagingCost}
+                  onChange={handleNumChange((val) => updateProductField(activeProduct.id, 'packagingCost', val))}
+                  onBlur={handleNumBlur(activeProduct.packagingCost, (val) =>
+                    updateProductField(activeProduct.id, 'packagingCost', val),
+                  )}
+                />
               </div>
             </div>
 
@@ -768,31 +756,19 @@ function FormulaCogsCalculator() {
                 <Tag size={17} aria-hidden="true" />
                 <span>Stickers Price</span>
               </h2>
-              <div className="fc-field-row fc-field-row-2">
-                <div className="fc-field">
-                  <label htmlFor="fc-stickers-cost">Cost per Piece (EGP)</label>
-                  <input
-                    id="fc-stickers-cost"
-                    type="number"
-                    min="0"
-                    step="any"
-                    value={activeProduct.stickersCost}
-                    onChange={handleNumChange((val) => updateProductField(activeProduct.id, 'stickersCost', val))}
-                    onBlur={handleNumBlur(activeProduct.stickersCost, (val) =>
-                      updateProductField(activeProduct.id, 'stickersCost', val),
-                    )}
-                  />
-                </div>
-                <div className="fc-field">
-                  <label htmlFor="fc-stickers-note">Item Note</label>
-                  <input
-                    id="fc-stickers-note"
-                    type="text"
-                    value={activeProduct.stickersNote || ''}
-                    onChange={(e) => updateProductField(activeProduct.id, 'stickersNote', e.target.value)}
-                    placeholder="e.g. Front & Back"
-                  />
-                </div>
+              <div className="fc-field">
+                <label htmlFor="fc-stickers-cost">Cost per Piece (EGP)</label>
+                <input
+                  id="fc-stickers-cost"
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={activeProduct.stickersCost}
+                  onChange={handleNumChange((val) => updateProductField(activeProduct.id, 'stickersCost', val))}
+                  onBlur={handleNumBlur(activeProduct.stickersCost, (val) =>
+                    updateProductField(activeProduct.id, 'stickersCost', val),
+                  )}
+                />
               </div>
             </div>
           </section>
@@ -936,7 +912,6 @@ function FormulaCogsCalculator() {
                                 </option>
                               ))}
                             </select>
-                            {row.note && <span className="fc-row-note">{row.note}</span>}
                           </div>
                         </td>
                         <td>

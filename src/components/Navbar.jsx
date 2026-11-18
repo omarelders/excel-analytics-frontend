@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
-import { Home, List, CreditCard, LayoutGrid, FlaskConical, Menu, X } from 'lucide-react'
+import { Home, List, CreditCard, FlaskConical, Menu, X } from 'lucide-react'
 import ThemeToggle from './ThemeToggle'
 import './Navbar.css'
 
@@ -63,12 +63,6 @@ function Navbar() {
             <NavLink to="/payment-processing" className={({ isActive }) => isActive ? 'active' : ''} onClick={() => setMobileMenuOpen(false)}>
               <CreditCard size={20} />
               <span>Payment Processing</span>
-            </NavLink>
-          </li>
-          <li>
-            <NavLink to="/content-calendar" className={({ isActive }) => isActive ? 'active' : ''} onClick={() => setMobileMenuOpen(false)}>
-              <LayoutGrid size={20} />
-              <span>Content Calendar</span>
             </NavLink>
           </li>
           <li>
